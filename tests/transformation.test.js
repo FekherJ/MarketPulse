@@ -1,5 +1,7 @@
 const calculateVariation = require("../src/utils/calculateVariation");
-const { transformCoinGeckoPayload } = require("../src/services/transformation.service");
+const {
+  transformCoinGeckoPayload,
+} = require("../src/services/transformation.service");
 
 describe("calculateVariation", () => {
   test("should calculate positive variation percentage", () => {
@@ -36,17 +38,17 @@ describe("transformCoinGeckoPayload", () => {
       payload: {
         bitcoin: {
           usd: 78000,
-          usd_24h_change: 1.23456
+          usd_24h_change: 1.23456,
         },
         ethereum: {
           usd: 2300,
-          usd_24h_change: -0.98765
+          usd_24h_change: -0.98765,
         },
         solana: {
           usd: 86,
-          usd_24h_change: 0.12345
-        }
-      }
+          usd_24h_change: 0.12345,
+        },
+      },
     };
 
     const result = transformCoinGeckoPayload(rawRecord);
@@ -61,7 +63,7 @@ describe("transformCoinGeckoPayload", () => {
       high24h: null,
       low24h: null,
       rawPriceId: 1,
-      capturedAt: "2026-04-24T14:00:00.000Z"
+      capturedAt: "2026-04-24T14:00:00.000Z",
     });
 
     expect(result[1].symbol).toBe("ETH");
@@ -80,15 +82,17 @@ describe("transformCoinGeckoPayload", () => {
       payload: {
         bitcoin: {
           usd: 78000,
-          usd_24h_change: 1.2
+          usd_24h_change: 1.2,
         },
         ethereum: {
           usd: 2300,
-          usd_24h_change: -0.5
-        }
-      }
+          usd_24h_change: -0.5,
+        },
+      },
     };
 
-    expect(() => transformCoinGeckoPayload(rawRecord)).toThrow("Missing data for solana");
+    expect(() => transformCoinGeckoPayload(rawRecord)).toThrow(
+      "Missing data for solana",
+    );
   });
 });

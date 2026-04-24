@@ -24,7 +24,7 @@ async function saveMarketData(marketData) {
     marketData.high24h,
     marketData.low24h,
     marketData.rawPriceId,
-    marketData.capturedAt
+    marketData.capturedAt,
   ];
 
   const result = await pool.query(query, values);
@@ -99,5 +99,5 @@ module.exports = {
   saveMarketData,
   findLatestPrices,
   findLatestPriceBySymbol,
-  findPriceHistoryBySymbol
+  findPriceHistoryBySymbol,
 };

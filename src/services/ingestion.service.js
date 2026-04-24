@@ -15,7 +15,7 @@ async function fetchPricesFromCoinGecko() {
   const params = {
     ids: COINS.join(","),
     vs_currencies: "usd",
-    include_24hr_change: "true"
+    include_24hr_change: "true",
   };
 
   const startTime = Date.now();
@@ -23,12 +23,12 @@ async function fetchPricesFromCoinGecko() {
   logger.info({
     event: "INGESTION_START",
     source: "CoinGecko",
-    coins: COINS
+    coins: COINS,
   });
 
   const response = await axios.get(url, {
     params,
-    timeout: 10000
+    timeout: 10000,
   });
 
   const durationMs = Date.now() - startTime;
@@ -36,7 +36,7 @@ async function fetchPricesFromCoinGecko() {
   logger.info({
     event: "PRICE_FETCHED",
     source: "CoinGecko",
-    durationMs
+    durationMs,
   });
 
   return response.data;
@@ -50,7 +50,7 @@ async function fetchTransformAndStorePrices() {
 
     logger.info({
       event: "RAW_PRICE_STORED",
-      rawPriceId: rawRecord.id
+      rawPriceId: rawRecord.id,
     });
 
     const transformedRecords = transformCoinGeckoPayload(rawRecord);
@@ -65,7 +65,7 @@ async function fetchTransformAndStorePrices() {
         event: "MARKET_DATA_STORED",
         symbol: saved.symbol,
         price: saved.price,
-        rawPriceId: saved.raw_price_id
+        rawPriceId: saved.raw_price_id,
       });
 
       savedRecords.push(saved);
@@ -74,12 +74,12 @@ async function fetchTransformAndStorePrices() {
     return {
       rawPriceId: rawRecord.id,
       recordsCount: savedRecords.length,
-      records: savedRecords
+      records: savedRecords,
     };
   } catch (error) {
     logger.error({
       event: "INGESTION_FAILED",
-      message: error.message
+      message: error.message,
     });
 
     throw error;
@@ -88,5 +88,5 @@ async function fetchTransformAndStorePrices() {
 
 module.exports = {
   fetchPricesFromCoinGecko,
-  fetchTransformAndStorePrices
+  fetchTransformAndStorePrices,
 };

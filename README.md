@@ -11,6 +11,7 @@ Build a production-like data pipeline that answers one business question:
 **"What is happening on the crypto market right now — and what happened in the last 24h?"**
 
 This project covers the full lifecycle of a data product:
+
 - External data ingestion from a public API
 - Raw data storage and structured transformation (ETL)
 - Event-driven processing between services
@@ -74,17 +75,17 @@ This project covers the full lifecycle of a data product:
 
 ### V2 — AWS Cloud mapping
 
-| V1 Local Component     | AWS Equivalent         | Justification                                      |
-|------------------------|------------------------|----------------------------------------------------|
-| Cron job (Node.js)     | AWS Lambda + EventBridge Scheduler | Serverless, no server to manage           |
-| Raw storage (Postgres) | S3 (raw bucket)        | Cost-effective, durable, queryable via Athena      |
-| PriceFetchedEvent      | EventBridge Event      | Decouples ingestion from transformation            |
-| Transformation service | AWS Lambda             | Triggered by EventBridge, stateless processing     |
-| Processed data store   | RDS (PostgreSQL)       | Structured queries, relational integrity           |
-| Redis cache            | ElastiCache (Redis)    | Managed, multi-AZ, same Redis API                 |
-| REST API               | API Gateway + Lambda   | Serverless API exposure, scales automatically      |
-| Winston logs           | CloudWatch Logs        | Centralized observability, metrics, alerts         |
-| Docker Compose (local) | ECS Fargate (optional) | Container orchestration without managing EC2       |
+| V1 Local Component     | AWS Equivalent                     | Justification                                  |
+| ---------------------- | ---------------------------------- | ---------------------------------------------- |
+| Cron job (Node.js)     | AWS Lambda + EventBridge Scheduler | Serverless, no server to manage                |
+| Raw storage (Postgres) | S3 (raw bucket)                    | Cost-effective, durable, queryable via Athena  |
+| PriceFetchedEvent      | EventBridge Event                  | Decouples ingestion from transformation        |
+| Transformation service | AWS Lambda                         | Triggered by EventBridge, stateless processing |
+| Processed data store   | RDS (PostgreSQL)                   | Structured queries, relational integrity       |
+| Redis cache            | ElastiCache (Redis)                | Managed, multi-AZ, same Redis API              |
+| REST API               | API Gateway + Lambda               | Serverless API exposure, scales automatically  |
+| Winston logs           | CloudWatch Logs                    | Centralized observability, metrics, alerts     |
+| Docker Compose (local) | ECS Fargate (optional)             | Container orchestration without managing EC2   |
 
 ```
 CoinGecko API
@@ -117,19 +118,19 @@ Lambda (Ingestion)
 
 ## 🛠️ Tech Stack
 
-| Layer              | Technology          | Why                                               |
-|--------------------|---------------------|---------------------------------------------------|
-| Runtime            | Node.js             | Lightweight, async, widely used in fintech APIs   |
-| API Framework      | Express.js          | Standard, minimal, production-proven              |
-| Database           | PostgreSQL          | Relational, ACID, standard in financial systems   |
-| Cache              | Redis               | In-memory, sub-millisecond, industry standard     |
-| HTTP Client        | Axios               | Promise-based, interceptors, error handling       |
-| Scheduler          | node-cron           | Cron-style jobs, replaces EventBridge locally     |
-| Logging            | Winston             | Structured JSON logs, log levels, transports      |
-| API Docs           | Swagger (OpenAPI)   | Self-documenting API, standard in API-first teams |
-| Containerization   | Docker + Compose    | Reproducible env, cloud-ready packaging           |
-| Testing            | Jest                | Unit tests on transformation logic                |
-| Cloud (V2)         | AWS (Lambda, S3, EventBridge, RDS, ElastiCache, API Gateway, CloudWatch) | Industry standard |
+| Layer            | Technology                                                               | Why                                               |
+| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------- |
+| Runtime          | Node.js                                                                  | Lightweight, async, widely used in fintech APIs   |
+| API Framework    | Express.js                                                               | Standard, minimal, production-proven              |
+| Database         | PostgreSQL                                                               | Relational, ACID, standard in financial systems   |
+| Cache            | Redis                                                                    | In-memory, sub-millisecond, industry standard     |
+| HTTP Client      | Axios                                                                    | Promise-based, interceptors, error handling       |
+| Scheduler        | node-cron                                                                | Cron-style jobs, replaces EventBridge locally     |
+| Logging          | Winston                                                                  | Structured JSON logs, log levels, transports      |
+| API Docs         | Swagger (OpenAPI)                                                        | Self-documenting API, standard in API-first teams |
+| Containerization | Docker + Compose                                                         | Reproducible env, cloud-ready packaging           |
+| Testing          | Jest                                                                     | Unit tests on transformation logic                |
+| Cloud (V2)       | AWS (Lambda, S3, EventBridge, RDS, ElastiCache, API Gateway, CloudWatch) | Industry standard                                 |
 
 ---
 
@@ -207,8 +208,8 @@ GET  /api/docs                      → Swagger UI documentation
   "price": 65230.42,
   "currency": "USD",
   "variation24h": 2.37,
-  "high24h": 66100.00,
-  "low24h": 63800.00,
+  "high24h": 66100.0,
+  "low24h": 63800.0,
   "source": "cache",
   "capturedAt": "2026-04-24T10:00:00Z"
 }
@@ -295,33 +296,33 @@ ingestion.service.fetchAndStore()
 
 ### Sprint 1 — Local MVP
 
-| # | User Story | Acceptance Criteria |
-|---|-----------|---------------------|
-| US1 | As a system, I want to fetch BTC/ETH/SOL prices every 60s | Cron job runs, API called, response logged |
-| US2 | As a system, I want to store raw API responses before transformation | Raw payload saved in `raw_prices` with timestamp |
+| #   | User Story                                                               | Acceptance Criteria                                       |
+| --- | ------------------------------------------------------------------------ | --------------------------------------------------------- |
+| US1 | As a system, I want to fetch BTC/ETH/SOL prices every 60s                | Cron job runs, API called, response logged                |
+| US2 | As a system, I want to store raw API responses before transformation     | Raw payload saved in `raw_prices` with timestamp          |
 | US3 | As a system, I want to transform raw data into structured market records | `market_data` row created with price, variation, high/low |
-| US4 | As a user, I want to retrieve the latest price for a symbol via REST API | `GET /api/prices/BTC` returns valid JSON in < 100ms |
-| US5 | As a PO, I want structured logs on every ingestion cycle | Winston logs event, duration, symbol, success/error |
+| US4 | As a user, I want to retrieve the latest price for a symbol via REST API | `GET /api/prices/BTC` returns valid JSON in < 100ms       |
+| US5 | As a PO, I want structured logs on every ingestion cycle                 | Winston logs event, duration, symbol, success/error       |
 
 ### Sprint 2 — Technical credibility
 
-| # | User Story | Acceptance Criteria |
-|---|-----------|---------------------|
-| US6 | As a system, I want Redis to cache latest prices | Cache hit on second request, `source: "cache"` in response |
-| US7 | As a dev, I want to run the full stack with one command | `docker-compose up` starts API + PostgreSQL + Redis |
-| US8 | As a consumer, I want self-documented API endpoints | Swagger UI accessible at `/api/docs` |
-| US9 | As a dev, I want unit tests on the transformation logic | Jest tests pass on variation calculation edge cases |
-| US10 | As an architect, I want to simulate event-driven flow locally | EventEmitter connects ingestion → transformation → alert |
+| #    | User Story                                                    | Acceptance Criteria                                        |
+| ---- | ------------------------------------------------------------- | ---------------------------------------------------------- |
+| US6  | As a system, I want Redis to cache latest prices              | Cache hit on second request, `source: "cache"` in response |
+| US7  | As a dev, I want to run the full stack with one command       | `docker-compose up` starts API + PostgreSQL + Redis        |
+| US8  | As a consumer, I want self-documented API endpoints           | Swagger UI accessible at `/api/docs`                       |
+| US9  | As a dev, I want unit tests on the transformation logic       | Jest tests pass on variation calculation edge cases        |
+| US10 | As an architect, I want to simulate event-driven flow locally | EventEmitter connects ingestion → transformation → alert   |
 
 ### Sprint 3 — AWS Cloud version
 
-| # | User Story | Acceptance Criteria |
-|---|-----------|---------------------|
-| US11 | As a team, I want ingestion logic deployable as AWS Lambda | Lambda deployed via SAM/CDK, triggered by EventBridge Scheduler |
-| US12 | As a team, I want raw data stored in S3 | JSON objects uploaded to raw bucket per ingestion cycle |
+| #    | User Story                                                         | Acceptance Criteria                                              |
+| ---- | ------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| US11 | As a team, I want ingestion logic deployable as AWS Lambda         | Lambda deployed via SAM/CDK, triggered by EventBridge Scheduler  |
+| US12 | As a team, I want raw data stored in S3                            | JSON objects uploaded to raw bucket per ingestion cycle          |
 | US13 | As a team, I want transformation triggered by an EventBridge event | Lambda triggered by `PriceFetchedEvent` published to EventBridge |
-| US14 | As a team, I want processed data stored in RDS | MarketData rows written to RDS PostgreSQL |
-| US15 | As a user, I want the API exposed via API Gateway | GET /prices/BTC returns 200 via API Gateway endpoint |
+| US14 | As a team, I want processed data stored in RDS                     | MarketData rows written to RDS PostgreSQL                        |
+| US15 | As a user, I want the API exposed via API Gateway                  | GET /prices/BTC returns 200 via API Gateway endpoint             |
 
 ---
 
@@ -374,15 +375,15 @@ ALERT_VARIATION_THRESHOLD_PCT=3.0
 
 ## 🗣️ Interview Story
 
-> *"I built a small event-driven data pipeline to develop hands-on understanding of modern backend and cloud architectures.*
+> _"I built a small event-driven data pipeline to develop hands-on understanding of modern backend and cloud architectures._
 >
-> *The pipeline ingests crypto market prices from a public API on a scheduled basis. Raw responses are stored before any processing — this is the equivalent of a data lake layer, keeping an immutable audit trail. An event then triggers a transformation service that cleans the data, computes 24h price variation, and stores structured records in a relational database. A Redis cache sits in front of the REST API to avoid unnecessary database reads for frequently accessed latest prices.*
+> _The pipeline ingests crypto market prices from a public API on a scheduled basis. Raw responses are stored before any processing — this is the equivalent of a data lake layer, keeping an immutable audit trail. An event then triggers a transformation service that cleans the data, computes 24h price variation, and stores structured records in a relational database. A Redis cache sits in front of the REST API to avoid unnecessary database reads for frequently accessed latest prices._
 >
-> *I added structured JSON logging throughout — every ingestion cycle is logged with event type, duration, and outcome, which makes the system observable and prepares it for an ELK stack or CloudWatch integration.*
+> _I added structured JSON logging throughout — every ingestion cycle is logged with event type, duration, and outcome, which makes the system observable and prepares it for an ELK stack or CloudWatch integration._
 >
-> *Locally, I simulated the event-driven flow using Node.js EventEmitter. I then mapped each component to its AWS equivalent: Lambda for ingestion and transformation, S3 for raw storage, EventBridge for the event bus, RDS for processed data, ElastiCache for Redis, and API Gateway to expose the REST interface. That mapping exercise was as valuable as building the pipeline itself — it forced me to understand why each service exists and what it replaces.*
+> _Locally, I simulated the event-driven flow using Node.js EventEmitter. I then mapped each component to its AWS equivalent: Lambda for ingestion and transformation, S3 for raw storage, EventBridge for the event bus, RDS for processed data, ElastiCache for Redis, and API Gateway to expose the REST interface. That mapping exercise was as valuable as building the pipeline itself — it forced me to understand why each service exists and what it replaces._
 >
-> *The goal was not to become a cloud engineer, but to close the gap between functional product delivery and the architecture decisions I need to understand and challenge as a Technical PO."*
+> _The goal was not to become a cloud engineer, but to close the gap between functional product delivery and the architecture decisions I need to understand and challenge as a Technical PO."_
 
 ---
 
@@ -413,4 +414,4 @@ ALERT_VARIATION_THRESHOLD_PCT=3.0
 **Fekher** — Technical Product Owner | Financial markets & data architectures  
 [LinkedIn](#) · [GitHub](#)
 
-> *Built to deepen technical architecture knowledge across event-driven systems, cloud-native patterns, and data pipelines — applied to a financial markets context.*
+> _Built to deepen technical architecture knowledge across event-driven systems, cloud-native patterns, and data pipelines — applied to a financial markets context._

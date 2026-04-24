@@ -16,14 +16,14 @@ async function startServer() {
     app.listen(PORT, () => {
       logger.info({
         event: "SERVER_STARTED",
-        port: PORT
+        port: PORT,
       });
       startPriceIngestionJob();
     });
   } catch (error) {
     logger.error({
       event: "SERVER_START_FAILED",
-      message: error.message
+      message: error.message,
     });
 
     process.exit(1);

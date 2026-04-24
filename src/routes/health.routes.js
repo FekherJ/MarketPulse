@@ -11,8 +11,8 @@ router.get("/", async (req, res) => {
     timestamp: new Date().toISOString(),
     dependencies: {
       database: "UNKNOWN",
-      redis: "UNKNOWN"
-    }
+      redis: "UNKNOWN",
+    },
   };
 
   try {

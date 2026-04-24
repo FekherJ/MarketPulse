@@ -8,7 +8,7 @@ function transformCoinGeckoPayload(rawRecord) {
   const mapping = {
     bitcoin: "BTC",
     ethereum: "ETH",
-    solana: "SOL"
+    solana: "SOL",
   };
 
   const transformedRecords = Object.entries(mapping).map(([coinId, symbol]) => {
@@ -28,19 +28,19 @@ function transformCoinGeckoPayload(rawRecord) {
       high24h: coinData.usd_24h_high || null,
       low24h: coinData.usd_24h_low || null,
       rawPriceId,
-      capturedAt
+      capturedAt,
     };
   });
 
   logger.info({
     event: "PRICE_TRANSFORMED",
     rawPriceId,
-    recordsCount: transformedRecords.length
+    recordsCount: transformedRecords.length,
   });
 
   return transformedRecords;
 }
 
 module.exports = {
-  transformCoinGeckoPayload
+  transformCoinGeckoPayload,
 };

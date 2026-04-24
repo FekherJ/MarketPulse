@@ -2,12 +2,13 @@ const express = require("express");
 const {
   findLatestPrices,
   findLatestPriceBySymbol,
-  findPriceHistoryBySymbol
+  findPriceHistoryBySymbol,
 } = require("../repositories/marketData.repository");
-const { fetchTransformAndStorePrices } = require("../services/ingestion.service");
+const {
+  fetchTransformAndStorePrices,
+} = require("../services/ingestion.service");
 
 const { getLatestPrice, setLatestPrice } = require("../services/cache.service");
-
 
 const router = express.Router();
 
@@ -18,13 +19,13 @@ router.post("/fetch", async (req, res) => {
     res.status(201).json({
       status: "SUCCESS",
       message: "Prices fetched, transformed and stored successfully",
-      data: result
+      data: result,
     });
   } catch (error) {
     res.status(500).json({
       status: "ERROR",
       message: "Failed to fetch prices",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -37,13 +38,13 @@ router.get("/latest", async (req, res) => {
       status: "SUCCESS",
       source: "database",
       count: prices.length,
-      data: prices
+      data: prices,
     });
   } catch (error) {
     res.status(500).json({
       status: "ERROR",
       message: "Failed to retrieve latest prices",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -58,7 +59,7 @@ router.get("/latest/:symbol", async (req, res) => {
       return res.json({
         status: "SUCCESS",
         source: "cache",
-        data: cachedPrice
+        data: cachedPrice,
       });
     }
 
@@ -67,7 +68,7 @@ router.get("/latest/:symbol", async (req, res) => {
     if (!price) {
       return res.status(404).json({
         status: "NOT_FOUND",
-        message: `No price found for symbol ${symbol}`
+        message: `No price found for symbol ${symbol}`,
       });
     }
 
@@ -76,13 +77,13 @@ router.get("/latest/:symbol", async (req, res) => {
     res.json({
       status: "SUCCESS",
       source: "database",
-      data: price
+      data: price,
     });
   } catch (error) {
     res.status(500).json({
       status: "ERROR",
       message: "Failed to retrieve latest price",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -95,13 +96,13 @@ router.get("/history/:symbol", async (req, res) => {
     res.json({
       status: "SUCCESS",
       count: history.length,
-      data: history
+      data: history,
     });
   } catch (error) {
     res.status(500).json({
       status: "ERROR",
       message: "Failed to retrieve price history",
-      error: error.message
+      error: error.message,
     });
   }
 });

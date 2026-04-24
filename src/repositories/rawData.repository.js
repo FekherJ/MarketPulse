@@ -24,5 +24,5 @@ async function findRawPriceById(id) {
 
 module.exports = {
   saveRawPrice,
-  findRawPriceById
+  findRawPriceById,
 };

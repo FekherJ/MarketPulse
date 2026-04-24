@@ -2,20 +2,20 @@ jest.mock("../src/config/redis", () => ({
   redisClient: {
     setEx: jest.fn(),
     get: jest.fn(),
-    del: jest.fn()
-  }
+    del: jest.fn(),
+  },
 }));
 
 jest.mock("../src/config/logger", () => ({
   info: jest.fn(),
-  error: jest.fn()
+  error: jest.fn(),
 }));
 
 const { redisClient } = require("../src/config/redis");
 const {
   setLatestPrice,
   getLatestPrice,
-  deleteLatestPrice
+  deleteLatestPrice,
 } = require("../src/services/cache.service");
 
 describe("cache.service", () => {
@@ -30,7 +30,7 @@ describe("cache.service", () => {
         price: "78000.000000",
         currency: "USD",
         variation24h: "0.5124",
-        captured_at: "2026-04-24T14:00:00.000Z"
+        captured_at: "2026-04-24T14:00:00.000Z",
       };
 
       await setLatestPrice("BTC", marketData);
@@ -39,14 +39,14 @@ describe("cache.service", () => {
       expect(redisClient.setEx).toHaveBeenCalledWith(
         "latest:BTC",
         300,
-        JSON.stringify(marketData)
+        JSON.stringify(marketData),
       );
     });
 
     test("should normalize symbol to uppercase when storing", async () => {
       const marketData = {
         symbol: "BTC",
-        price: "78000.000000"
+        price: "78000.000000",
       };
 
       await setLatestPrice("btc", marketData);
@@ -54,7 +54,7 @@ describe("cache.service", () => {
       expect(redisClient.setEx).toHaveBeenCalledWith(
         "latest:BTC",
         300,
-        JSON.stringify(marketData)
+        JSON.stringify(marketData),
       );
     });
   });
@@ -64,7 +64,7 @@ describe("cache.service", () => {
       const cachedMarketData = {
         symbol: "ETH",
         price: "2300.000000",
-        currency: "USD"
+        currency: "USD",
       };
 
       redisClient.get.mockResolvedValue(JSON.stringify(cachedMarketData));
@@ -87,7 +87,7 @@ describe("cache.service", () => {
     test("should normalize symbol to uppercase when reading", async () => {
       const cachedMarketData = {
         symbol: "BTC",
-        price: "78000.000000"
+        price: "78000.000000",
       };
 
       redisClient.get.mockResolvedValue(JSON.stringify(cachedMarketData));

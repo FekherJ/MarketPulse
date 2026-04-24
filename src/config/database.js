@@ -6,7 +6,7 @@ const pool = new Pool({
   port: Number(process.env.DB_PORT),
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD
+  password: process.env.DB_PASSWORD,
 });
 
 async function testDatabaseConnection() {
@@ -14,12 +14,12 @@ async function testDatabaseConnection() {
     const result = await pool.query("SELECT NOW()");
     logger.info({
       event: "DATABASE_CONNECTED",
-      timestamp: result.rows[0].now
+      timestamp: result.rows[0].now,
     });
   } catch (error) {
     logger.error({
       event: "DATABASE_CONNECTION_FAILED",
-      message: error.message
+      message: error.message,
     });
     throw error;
   }
@@ -27,5 +27,5 @@ async function testDatabaseConnection() {
 
 module.exports = {
   pool,
-  testDatabaseConnection
+  testDatabaseConnection,
 };

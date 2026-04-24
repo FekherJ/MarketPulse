@@ -10,16 +10,12 @@ function buildLatestPriceKey(symbol) {
 async function setLatestPrice(symbol, marketData) {
   const key = buildLatestPriceKey(symbol);
 
-  await redisClient.setEx(
-    key,
-    CACHE_TTL_SECONDS,
-    JSON.stringify(marketData)
-  );
+  await redisClient.setEx(key, CACHE_TTL_SECONDS, JSON.stringify(marketData));
 
   logger.info({
     event: "CACHE_SET",
     key,
-    ttlSeconds: CACHE_TTL_SECONDS
+    ttlSeconds: CACHE_TTL_SECONDS,
   });
 }
 
@@ -31,7 +27,7 @@ async function getLatestPrice(symbol) {
   if (!cachedValue) {
     logger.info({
       event: "CACHE_MISS",
-      key
+      key,
     });
 
     return null;
@@ -39,7 +35,7 @@ async function getLatestPrice(symbol) {
 
   logger.info({
     event: "CACHE_HIT",
-    key
+    key,
   });
 
   return JSON.parse(cachedValue);
@@ -52,12 +48,12 @@ async function deleteLatestPrice(symbol) {
 
   logger.info({
     event: "CACHE_DELETE",
-    key
+    key,
   });
 }
 
 module.exports = {
   setLatestPrice,
   getLatestPrice,
-  deleteLatestPrice
+  deleteLatestPrice,
 };
