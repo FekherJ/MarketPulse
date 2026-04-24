@@ -1,5 +1,9 @@
+// Market data repository - handles all database operations for price data
+// Uses the PostgreSQL connection pool from the database config module
 const { pool } = require("../config/database");
 
+// Insert transformed market data into the market_data table
+// Returns the complete inserted record with generated ID
 async function saveMarketData(marketData) {
   const query = `
     INSERT INTO market_data (
@@ -31,6 +35,9 @@ async function saveMarketData(marketData) {
   return result.rows[0];
 }
 
+// Retrieve the most recent price for each symbol
+// Uses PostgreSQL's DISTINCT ON to get one row per symbol, ordered by capture time
+// Used by the /latest endpoint to show current market prices
 async function findLatestPrices() {
   const query = `
     SELECT DISTINCT ON (symbol)
@@ -51,6 +58,9 @@ async function findLatestPrices() {
   return result.rows;
 }
 
+// Get the most recent price for a specific symbol
+// Normalizes the symbol to uppercase for consistent lookup
+// Returns null if no data exists for the symbol
 async function findLatestPriceBySymbol(symbol) {
   const query = `
     SELECT

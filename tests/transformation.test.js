@@ -1,36 +1,48 @@
+// Test file for utility functions and transformation service
+// Tests the calculateVariation utility and transformCoinGeckoPayload function
+
+// Import the functions under test
 const calculateVariation = require("../src/utils/calculateVariation");
 const {
   transformCoinGeckoPayload,
 } = require("../src/services/transformation.service");
 
+// Test suite for calculateVariation utility function
 describe("calculateVariation", () => {
+  // Test: positive percentage change should be calculated correctly
   test("should calculate positive variation percentage", () => {
     const result = calculateVariation(110, 100);
     expect(result).toBe(10);
   });
 
+  // Test: negative percentage change should be calculated correctly
   test("should calculate negative variation percentage", () => {
     const result = calculateVariation(90, 100);
     expect(result).toBe(-10);
   });
 
+  // Test: division by zero should return null (not crash)
   test("should return null when previous price is zero", () => {
     const result = calculateVariation(100, 0);
     expect(result).toBeNull();
   });
 
+  // Test: null/undefined previous price should return null
   test("should return null when previous price is missing", () => {
     const result = calculateVariation(100, null);
     expect(result).toBeNull();
   });
 
+  // Test: verify precision is limited to 4 decimal places
   test("should round variation to 4 decimals", () => {
     const result = calculateVariation(105.55555, 100);
     expect(result).toBe(5.5555);
   });
 });
 
+// Test suite for transformCoinGeckoPayload transformation function
 describe("transformCoinGeckoPayload", () => {
+  // Test: verify complete transformation from CoinGecko format to internal schema
   test("should transform CoinGecko payload into market data records", () => {
     const rawRecord = {
       id: 1,
@@ -75,6 +87,7 @@ describe("transformCoinGeckoPayload", () => {
     expect(result[2].variation24h).toBe(0.1235);
   });
 
+  // Test: verify error handling when expected coin data is missing
   test("should throw an error when a coin is missing from payload", () => {
     const rawRecord = {
       id: 1,

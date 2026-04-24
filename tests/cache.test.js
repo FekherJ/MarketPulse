@@ -1,3 +1,9 @@
+// Test file for cache.service.js
+// Uses Jest to verify the cache layer functionality
+// Mocks are used to avoid actual Redis connections during testing
+
+// Mock the Redis client module to control its behavior in tests
+// This isolates the cache service tests from external dependencies
 jest.mock("../src/config/redis", () => ({
   redisClient: {
     setEx: jest.fn(),
@@ -6,11 +12,13 @@ jest.mock("../src/config/redis", () => ({
   },
 }));
 
+// Mock the logger to prevent console output during test runs
 jest.mock("../src/config/logger", () => ({
   info: jest.fn(),
   error: jest.fn(),
 }));
 
+// Import the mocked Redis client and the service under test
 const { redisClient } = require("../src/config/redis");
 const {
   setLatestPrice,
@@ -18,12 +26,17 @@ const {
   deleteLatestPrice,
 } = require("../src/services/cache.service");
 
+// Test suite for cache.service functions
+// Groups tests by the function being tested
 describe("cache.service", () => {
+  // Reset all mocks before each test to ensure clean state
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
+  // Tests for setLatestPrice function
   describe("setLatestPrice", () => {
+    // Verify that prices are stored with the correct key format and TTL
     test("should store latest price in Redis with TTL", async () => {
       const marketData = {
         symbol: "BTC",
@@ -43,6 +56,7 @@ describe("cache.service", () => {
       );
     });
 
+    // Verify symbol normalization works correctly (lowercase input -> uppercase key)
     test("should normalize symbol to uppercase when storing", async () => {
       const marketData = {
         symbol: "BTC",
@@ -59,7 +73,9 @@ describe("cache.service", () => {
     });
   });
 
+  // Tests for getLatestPrice function
   describe("getLatestPrice", () => {
+    // Verify that cached data is retrieved and parsed correctly
     test("should return parsed cached value when cache hit", async () => {
       const cachedMarketData = {
         symbol: "ETH",
@@ -75,6 +91,7 @@ describe("cache.service", () => {
       expect(result).toEqual(cachedMarketData);
     });
 
+    // Verify null is returned when no data exists for the symbol
     test("should return null when cache miss", async () => {
       redisClient.get.mockResolvedValue(null);
 
@@ -84,6 +101,7 @@ describe("cache.service", () => {
       expect(result).toBeNull();
     });
 
+    // Verify case-insensitive symbol lookup
     test("should normalize symbol to uppercase when reading", async () => {
       const cachedMarketData = {
         symbol: "BTC",
@@ -98,7 +116,9 @@ describe("cache.service", () => {
     });
   });
 
+  // Tests for deleteLatestPrice function
   describe("deleteLatestPrice", () => {
+    // Verify the delete operation uses the correct Redis command
     test("should delete latest price from Redis", async () => {
       await deleteLatestPrice("BTC");
 
@@ -106,6 +126,7 @@ describe("cache.service", () => {
       expect(redisClient.del).toHaveBeenCalledWith("latest:BTC");
     });
 
+    // Verify case-insensitive deletion
     test("should normalize symbol to uppercase when deleting", async () => {
       await deleteLatestPrice("eth");
 
