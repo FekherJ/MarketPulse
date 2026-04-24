@@ -1,5 +1,6 @@
 require("dotenv").config();
 
+const { startPriceIngestionJob } = require("./jobs/priceIngestion.job");
 const app = require("./app");
 const logger = require("./config/logger");
 const { testDatabaseConnection } = require("./config/database");
@@ -17,6 +18,7 @@ async function startServer() {
         event: "SERVER_STARTED",
         port: PORT
       });
+      startPriceIngestionJob();
     });
   } catch (error) {
     logger.error({
