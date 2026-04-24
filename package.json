@@ -1,0 +1,16 @@
+{
+  "name": "marketpulse",
+  "version": "1.0.0",
+  "description": "> An event-driven data pipeline for real-time crypto market data — ingestion, transformation, caching, REST/GraphQL exposure, and observability.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
