@@ -6,6 +6,9 @@ const {
 } = require("../repositories/marketData.repository");
 const { fetchTransformAndStorePrices } = require("../services/ingestion.service");
 
+const { getLatestPrice, setLatestPrice } = require("../services/cache.service");
+
+
 const router = express.Router();
 
 router.post("/fetch", async (req, res) => {
@@ -32,6 +35,7 @@ router.get("/latest", async (req, res) => {
 
     res.json({
       status: "SUCCESS",
+      source: "database",
       count: prices.length,
       data: prices
     });
@@ -46,17 +50,32 @@ router.get("/latest", async (req, res) => {
 
 router.get("/latest/:symbol", async (req, res) => {
   try {
-    const price = await findLatestPriceBySymbol(req.params.symbol);
+    const symbol = req.params.symbol.toUpperCase();
+
+    const cachedPrice = await getLatestPrice(symbol);
+
+    if (cachedPrice) {
+      return res.json({
+        status: "SUCCESS",
+        source: "cache",
+        data: cachedPrice
+      });
+    }
+
+    const price = await findLatestPriceBySymbol(symbol);
 
     if (!price) {
       return res.status(404).json({
         status: "NOT_FOUND",
-        message: `No price found for symbol ${req.params.symbol.toUpperCase()}`
+        message: `No price found for symbol ${symbol}`
       });
     }
 
+    await setLatestPrice(symbol, price);
+
     res.json({
       status: "SUCCESS",
+      source: "database",
       data: price
     });
   } catch (error) {

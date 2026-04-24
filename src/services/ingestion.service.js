@@ -3,6 +3,7 @@ const logger = require("../config/logger");
 const { saveRawPrice } = require("../repositories/rawData.repository");
 const { saveMarketData } = require("../repositories/marketData.repository");
 const { transformCoinGeckoPayload } = require("./transformation.service");
+const { setLatestPrice } = require("./cache.service");
 
 const COINS = ["bitcoin", "ethereum", "solana"];
 
@@ -58,6 +59,7 @@ async function fetchTransformAndStorePrices() {
 
     for (const record of transformedRecords) {
       const saved = await saveMarketData(record);
+      await setLatestPrice(saved.symbol, saved);
 
       logger.info({
         event: "MARKET_DATA_STORED",
