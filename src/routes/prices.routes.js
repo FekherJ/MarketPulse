@@ -90,7 +90,9 @@ router.get("/latest/:symbol", async (req, res) => {
 
 router.get("/history/:symbol", async (req, res) => {
   try {
-    const limit = Number(req.query.limit) || 100;
+    const requestedLimit = Number(req.query.limit) || 100;
+    const limit = Math.min(Math.max(requestedLimit, 1), 500);
+
     const history = await findPriceHistoryBySymbol(req.params.symbol, limit);
 
     res.json({

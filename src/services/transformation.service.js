@@ -22,9 +22,11 @@ function transformCoinGeckoPayload(rawRecord) {
       symbol,
       price: coinData.usd,
       currency: "USD",
-      variation24h: coinData.usd_24h_change
-        ? Number(coinData.usd_24h_change.toFixed(4))
-        : null,
+      variation24h:
+        coinData.usd_24h_change !== undefined &&
+        coinData.usd_24h_change !== null
+          ? Number(coinData.usd_24h_change.toFixed(4))
+          : null,
       high24h: coinData.usd_24h_high || null,
       low24h: coinData.usd_24h_low || null,
       rawPriceId,
