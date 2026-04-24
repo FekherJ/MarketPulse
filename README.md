@@ -1,189 +1,194 @@
 # 📈 MarketPulse Pipeline
 
-> An event-driven data pipeline for real-time crypto market data — ingestion, transformation, caching, REST/GraphQL exposure, and observability.
+> A scheduled crypto market data pipeline for ingestion, transformation, caching, REST API exposure, structured logging, and cloud-ready architecture mapping.
 
 ---
 
 ## 🎯 Goal
 
-Build a production-like data pipeline that answers one business question:
+MarketPulse is a technical learning project designed to answer one business question:
 
-**"What is happening on the crypto market right now — and what happened in the last 24h?"**
+**"What is happening on the crypto market right now — and what happened recently?"**
 
-This project covers the full lifecycle of a data product:
+The project demonstrates a complete backend/data pipeline flow:
 
-- External data ingestion from a public API
-- Raw data storage and structured transformation (ETL)
-- Event-driven processing between services
-- Caching layer for performance
-- REST API exposure with Swagger documentation
-- Structured logging and observability
-- Cloud-ready architecture (AWS mapping)
+- External market data ingestion from CoinGecko
+- Raw payload storage in PostgreSQL
+- ETL-style transformation into structured market records
+- Redis cache for frequently accessed latest prices
+- REST API exposure through Express.js
+- Scheduled ingestion with `node-cron`
+- Structured JSON logs with Winston
+- Unit tests for transformation and cache logic
+- AWS architecture mapping for a future cloud version
+
+---
+
+## ✅ Current Status
+
+MarketPulse currently includes:
+
+- Express.js REST API
+- CoinGecko market data ingestion
+- PostgreSQL storage for raw and processed market data
+- ETL-style transformation layer
+- Redis cache for latest BTC / ETH / SOL prices
+- Scheduled ingestion every 60 seconds with `node-cron`
+- Structured JSON logs with Winston
+- Unit tests with Jest
+- Docker Compose setup for PostgreSQL and Redis
+- Prettier formatting
+
+Planned next steps:
+
+- Swagger / OpenAPI documentation
+- AWS proof of concept: EventBridge Scheduler → Lambda → S3 → CloudWatch
+- GraphQL endpoint
+- ELK / Kibana dashboard
 
 ---
 
 ## 🏗️ Architecture
 
-### V1 — Local (current)
+### V1 — Local implementation
 
-```
-┌─────────────────────┐
-│   CoinGecko API      │  External data source (free, no auth required)
-└────────┬────────────┘
-         │  HTTP polling (every 60s via cron job)
-         ▼
-┌─────────────────────┐
-│  Ingestion Service   │  Fetches BTC, ETH, SOL prices
-│  (Node.js)          │  Validates and stores raw response as-is
-└────────┬────────────┘
-         │  Emits: PriceFetchedEvent
-         ▼
-┌─────────────────────┐
-│  Raw Data Store      │  PostgreSQL — stores immutable raw API responses
-│  (PostgreSQL)        │  Useful for reprocessing / audit trail
-└────────┬────────────┘
-         │  Event triggers transformation
-         ▼
-┌─────────────────────┐
-│ Transformation Svc   │  Cleans, normalizes, computes 24h variation
-│  (Node.js)          │  Produces structured MarketData records
-└────────┬────────────┘
-         │  Emits: PriceTransformedEvent
-         ▼
-┌─────────────────────┐     ┌──────────────────────┐
-│ Processed Data Store │     │   Alert Service       │
-│  (PostgreSQL)        │     │   (price variation    │
-│  Structured records  │     │    threshold alerts)  │
-└────────┬────────────┘     └──────────────────────┘
-         │
-         ▼
-┌─────────────────────┐     ┌──────────────────────┐
-│   Cache Layer        │     │   REST API            │
-│   (Redis)            │◄────│   (Express)           │
-│   latest:BTC/ETH/SOL │     │   /api/prices/...     │
-└─────────────────────┘     └──────────────────────┘
-                                        │
-                             ┌──────────────────────┐
-                             │   Swagger Docs        │
-                             │   /api/docs           │
-                             └──────────────────────┘
-```
-
-**Logging layer (transversal) :** Winston → structured JSON logs → ELK-ready
-
----
-
-### V2 — AWS Cloud mapping
-
-| V1 Local Component     | AWS Equivalent                     | Justification                                  |
-| ---------------------- | ---------------------------------- | ---------------------------------------------- |
-| Cron job (Node.js)     | AWS Lambda + EventBridge Scheduler | Serverless, no server to manage                |
-| Raw storage (Postgres) | S3 (raw bucket)                    | Cost-effective, durable, queryable via Athena  |
-| PriceFetchedEvent      | EventBridge Event                  | Decouples ingestion from transformation        |
-| Transformation service | AWS Lambda                         | Triggered by EventBridge, stateless processing |
-| Processed data store   | RDS (PostgreSQL)                   | Structured queries, relational integrity       |
-| Redis cache            | ElastiCache (Redis)                | Managed, multi-AZ, same Redis API              |
-| REST API               | API Gateway + Lambda               | Serverless API exposure, scales automatically  |
-| Winston logs           | CloudWatch Logs                    | Centralized observability, metrics, alerts     |
-| Docker Compose (local) | ECS Fargate (optional)             | Container orchestration without managing EC2   |
-
-```
+```text
 CoinGecko API
       │
       ▼
-Lambda (Ingestion)
+Scheduled Job / Manual Trigger
+(node-cron or POST /api/prices/fetch)
       │
-      ├──► S3 Raw Bucket (raw JSON responses)
+      ▼
+Ingestion Service
+(fetch BTC, ETH, SOL prices)
       │
-      └──► EventBridge (PriceFetchedEvent)
+      ▼
+Raw Data Store
+PostgreSQL: raw_prices
+(raw JSON payload)
+      │
+      ▼
+Transformation Service
+(normalize data + compute 24h variation)
+      │
+      ▼
+Processed Data Store
+PostgreSQL: market_data
+(structured market records)
+      │
+      ▼
+Redis Cache
+latest:BTC / latest:ETH / latest:SOL
+      │
+      ▼
+REST API
+Express.js
+```
+
+The current implementation is local, but the architecture is designed so each component can be mapped to a cloud-native AWS equivalent later.
+
+---
+
+## ☁️ AWS Mapping
+
+The AWS version is not implemented yet. This table explains how the current local components would map to AWS services in a future version.
+
+| Local Component             | AWS Equivalent        | Purpose                                    |
+| --------------------------- | --------------------- | ------------------------------------------ |
+| node-cron scheduled job     | EventBridge Scheduler | Trigger ingestion periodically             |
+| Ingestion service           | AWS Lambda            | Fetch data from CoinGecko                  |
+| Raw PostgreSQL JSON storage | S3 raw bucket         | Store immutable raw payloads               |
+| Transformation service      | AWS Lambda            | Transform raw data into structured records |
+| PostgreSQL processed data   | RDS PostgreSQL        | Store structured market records            |
+| Redis cache                 | ElastiCache Redis     | Cache latest prices                        |
+| Express REST API            | API Gateway + Lambda  | Expose data through HTTP endpoints         |
+| Winston logs                | CloudWatch Logs       | Centralized logs and monitoring            |
+
+Future AWS target flow:
+
+```text
+EventBridge Scheduler
+      │
+      ▼
+Lambda Ingestion
+      │
+      ├──► S3 Raw Bucket
+      │
+      └──► EventBridge Event
                 │
                 ▼
-         Lambda (Transformation)
+        Lambda Transformation
                 │
-                ├──► RDS PostgreSQL (structured MarketData)
-                │
-                └──► ElastiCache Redis (latest prices)
-                              │
-                              ▼
-                       API Gateway
-                              │
-                              ▼
-                        Lambda (API Handler)
-                              │
-                              ▼
-                           Client
+                ├──► RDS PostgreSQL
+                └──► ElastiCache Redis
+                            │
+                            ▼
+                    API Gateway + Lambda
 ```
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer            | Technology                                                               | Why                                               |
-| ---------------- | ------------------------------------------------------------------------ | ------------------------------------------------- |
-| Runtime          | Node.js                                                                  | Lightweight, async, widely used in fintech APIs   |
-| API Framework    | Express.js                                                               | Standard, minimal, production-proven              |
-| Database         | PostgreSQL                                                               | Relational, ACID, standard in financial systems   |
-| Cache            | Redis                                                                    | In-memory, sub-millisecond, industry standard     |
-| HTTP Client      | Axios                                                                    | Promise-based, interceptors, error handling       |
-| Scheduler        | node-cron                                                                | Cron-style jobs, replaces EventBridge locally     |
-| Logging          | Winston                                                                  | Structured JSON logs, log levels, transports      |
-| API Docs         | Swagger (OpenAPI)                                                        | Self-documenting API, standard in API-first teams |
-| Containerization | Docker + Compose                                                         | Reproducible env, cloud-ready packaging           |
-| Testing          | Jest                                                                     | Unit tests on transformation logic                |
-| Cloud (V2)       | AWS (Lambda, S3, EventBridge, RDS, ElastiCache, API Gateway, CloudWatch) | Industry standard                                 |
+| Layer            | Technology     | Purpose                         |
+| ---------------- | -------------- | ------------------------------- |
+| Runtime          | Node.js        | Backend runtime                 |
+| API Framework    | Express.js     | REST API                        |
+| Database         | PostgreSQL     | Raw and structured data storage |
+| Cache            | Redis          | Latest price caching            |
+| HTTP Client      | Axios          | CoinGecko API calls             |
+| Scheduler        | node-cron      | Local scheduled ingestion       |
+| Logging          | Winston        | Structured JSON logs            |
+| Testing          | Jest           | Unit tests                      |
+| Containerization | Docker Compose | Local PostgreSQL and Redis      |
+| Formatting       | Prettier       | Code formatting                 |
 
 ---
 
 ## 📁 Project Structure
 
-```
+```text
 marketpulse-pipeline/
 │
 ├── README.md
-├── docker-compose.yml           # PostgreSQL + Redis + App
-├── .env.example                 # Environment variables template
+├── docker-compose.yml
+├── .env.example
+├── package.json
+│
+├── db/
+│   └── init.sql
 │
 ├── src/
-│   ├── app.js                   # Express app setup
-│   ├── server.js                # Server entry point
+│   ├── app.js
+│   ├── server.js
 │   │
 │   ├── config/
-│   │   ├── database.js          # PostgreSQL connection pool
-│   │   ├── redis.js             # Redis client
-│   │   └── logger.js            # Winston structured logger
+│   │   ├── database.js
+│   │   ├── redis.js
+│   │   └── logger.js
 │   │
 │   ├── jobs/
-│   │   └── priceIngestion.job.js  # Cron: fetch prices every 60s
+│   │   └── priceIngestion.job.js
 │   │
 │   ├── services/
-│   │   ├── ingestion.service.js   # Calls CoinGecko, stores raw data
-│   │   ├── transformation.service.js  # Cleans + computes metrics
-│   │   ├── cache.service.js       # Redis get/set/invalidate
-│   │   └── alert.service.js       # Threshold-based price alerts
+│   │   ├── ingestion.service.js
+│   │   ├── transformation.service.js
+│   │   └── cache.service.js
 │   │
 │   ├── repositories/
-│   │   ├── rawData.repository.js      # CRUD on raw_prices table
-│   │   └── marketData.repository.js   # CRUD on market_data table
+│   │   ├── rawData.repository.js
+│   │   └── marketData.repository.js
 │   │
 │   ├── routes/
-│   │   ├── prices.routes.js     # GET /api/prices/...
-│   │   └── health.routes.js     # GET /health
+│   │   ├── prices.routes.js
+│   │   └── health.routes.js
 │   │
 │   └── utils/
-│       └── calculateVariation.js  # Pure function: 24h % variation
-│
-├── docs/
-│   ├── architecture.md          # Architecture deep-dive
-│   ├── adr/
-│   │   ├── ADR-001-redis-vs-db-cache.md
-│   │   ├── ADR-002-event-driven-local-simulation.md
-│   │   └── ADR-003-postgresql-vs-dynamodb.md
-│   ├── product-requirements.md  # PRD with user stories
-│   ├── backlog.md               # Sprints + acceptance criteria
-│   └── aws-mapping.md           # V1 → V2 cloud migration plan
+│       └── calculateVariation.js
 │
 └── tests/
-    ├── transformation.test.js   # Unit tests
+    ├── transformation.test.js
     └── cache.test.js
 ```
 
@@ -191,138 +196,257 @@ marketpulse-pipeline/
 
 ## 🔌 API Endpoints
 
-```
-GET  /health                        → Service health + DB + Redis status
-GET  /api/prices/latest             → Latest prices for all symbols
-GET  /api/prices/:symbol            → Latest price for BTC, ETH or SOL
-GET  /api/prices/history/:symbol    → Price history (last 24h)
-POST /api/prices/fetch              → Manual trigger: fetch + store prices
-GET  /api/docs                      → Swagger UI documentation
+| Method | Endpoint                               | Description                                                      |
+| ------ | -------------------------------------- | ---------------------------------------------------------------- |
+| GET    | `/health`                              | Checks API, PostgreSQL and Redis health                          |
+| POST   | `/api/prices/fetch`                    | Manually triggers CoinGecko ingestion                            |
+| GET    | `/api/prices/latest`                   | Returns latest prices for all tracked symbols                    |
+| GET    | `/api/prices/latest/:symbol`           | Returns latest price for BTC, ETH or SOL using Redis cache first |
+| GET    | `/api/prices/history/:symbol?limit=10` | Returns price history for a symbol                               |
+
+---
+
+## 🧪 Example Usage
+
+### Health check
+
+```bash
+curl http://localhost:3000/health
 ```
 
-### Sample response — `GET /api/prices/BTC`
+Example response:
 
 ```json
 {
-  "symbol": "BTC",
-  "price": 65230.42,
-  "currency": "USD",
-  "variation24h": 2.37,
-  "high24h": 66100.0,
-  "low24h": 63800.0,
-  "source": "cache",
-  "capturedAt": "2026-04-24T10:00:00Z"
+  "status": "UP",
+  "service": "marketpulse-api",
+  "timestamp": "2026-04-24T14:00:00.000Z",
+  "dependencies": {
+    "database": "UP",
+    "redis": "UP"
+  }
 }
+```
+
+### Trigger manual ingestion
+
+```bash
+curl -X POST http://localhost:3000/api/prices/fetch
+```
+
+Example response:
+
+```json
+{
+  "status": "SUCCESS",
+  "message": "Prices fetched, transformed and stored successfully",
+  "data": {
+    "rawPriceId": 1,
+    "recordsCount": 3,
+    "records": [
+      {
+        "id": 1,
+        "symbol": "BTC",
+        "price": "78000.000000",
+        "currency": "USD"
+      }
+    ]
+  }
+}
+```
+
+### Get latest prices
+
+```bash
+curl http://localhost:3000/api/prices/latest
+```
+
+### Get latest BTC price
+
+```bash
+curl http://localhost:3000/api/prices/latest/BTC
+```
+
+Example response:
+
+```json
+{
+  "status": "SUCCESS",
+  "source": "cache",
+  "data": {
+    "id": 1,
+    "symbol": "BTC",
+    "price": "78000.000000",
+    "currency": "USD",
+    "variation24h": "0.5124",
+    "high24h": null,
+    "low24h": null,
+    "raw_price_id": 1,
+    "captured_at": "2026-04-24T14:00:00.000Z"
+  }
+}
+```
+
+### Get BTC history
+
+```bash
+curl "http://localhost:3000/api/prices/history/BTC?limit=10"
 ```
 
 ---
 
 ## 📦 Data Model
 
-### `raw_prices` table — immutable raw responses
+### `raw_prices`
+
+Stores the original CoinGecko response before transformation.
 
 ```sql
-CREATE TABLE raw_prices (
-  id           SERIAL PRIMARY KEY,
-  payload      JSONB NOT NULL,        -- full API response, untouched
-  fetched_at   TIMESTAMP DEFAULT NOW()
+CREATE TABLE IF NOT EXISTS raw_prices (
+  id SERIAL PRIMARY KEY,
+  payload JSONB NOT NULL,
+  fetched_at TIMESTAMP DEFAULT NOW()
 );
 ```
 
-### `market_data` table — processed, structured records
+### `market_data`
+
+Stores structured market data records.
 
 ```sql
-CREATE TABLE market_data (
-  id            SERIAL PRIMARY KEY,
-  symbol        VARCHAR(10) NOT NULL,
-  price         DECIMAL(18, 6) NOT NULL,
-  currency      VARCHAR(5) DEFAULT 'USD',
-  variation24h  DECIMAL(8, 4),
-  high24h       DECIMAL(18, 6),
-  low24h        DECIMAL(18, 6),
-  raw_price_id  INTEGER REFERENCES raw_prices(id),
-  captured_at   TIMESTAMP NOT NULL
+CREATE TABLE IF NOT EXISTS market_data (
+  id SERIAL PRIMARY KEY,
+  symbol VARCHAR(10) NOT NULL,
+  price DECIMAL(18, 6) NOT NULL,
+  currency VARCHAR(5) DEFAULT 'USD',
+  variation24h DECIMAL(8, 4),
+  high24h DECIMAL(18, 6),
+  low24h DECIMAL(18, 6),
+  raw_price_id INTEGER REFERENCES raw_prices(id),
+  captured_at TIMESTAMP NOT NULL
 );
+```
+
+Each ingestion cycle creates:
+
+```text
+1 row in raw_prices
+3 rows in market_data: BTC, ETH, SOL
 ```
 
 ---
 
-## 🔔 Event Flow (local simulation)
+## 🔁 Pipeline Flow
 
-```
-CronJob fires
-    │
-    ▼
-ingestion.service.fetchAndStore()
-    │
-    ├──► rawData.repository.save(rawPayload)
-    │
-    └──► emit('PriceFetchedEvent', { rawPriceId })
-                │
-                ▼
-    transformation.service.transform(rawPriceId)
-                │
-                ├──► marketData.repository.save(marketData)
-                │
-                ├──► cache.service.set(`latest:${symbol}`, marketData)
-                │
-                └──► emit('PriceTransformedEvent', { symbol, variation24h })
-                                │
-                                ▼
-                    alert.service.checkThreshold(variation24h)
+```text
+node-cron job or POST /api/prices/fetch
+      │
+      ▼
+ingestion.service.fetchTransformAndStorePrices()
+      │
+      ├── Fetch prices from CoinGecko
+      ├── Store raw JSON payload in raw_prices
+      ├── Transform CoinGecko payload into market records
+      ├── Store BTC / ETH / SOL records in market_data
+      └── Refresh Redis cache keys:
+          - latest:BTC
+          - latest:ETH
+          - latest:SOL
 ```
 
-> **Interview note:** In a production system, `PriceFetchedEvent` would be published to a Kafka topic or AWS EventBridge. The transformation service would be a separate consumer/Lambda subscribed to that topic. This local simulation replicates the same logical flow, decoupled by events, without the infrastructure overhead.
+The local scheduled job uses `node-cron`. In a cloud version, this would naturally map to EventBridge Scheduler triggering a Lambda function.
 
 ---
 
-## 📊 Logging — Sample structured logs
+## ⚡ Redis Cache
+
+The latest price endpoint checks Redis first:
+
+```text
+GET /api/prices/latest/BTC
+      │
+      ├── Cache hit  → return Redis value with source: "cache"
+      └── Cache miss → query PostgreSQL, refresh Redis, return source: "database"
+```
+
+Redis keys:
+
+```text
+latest:BTC
+latest:ETH
+latest:SOL
+```
+
+Cache TTL:
+
+```text
+300 seconds
+```
+
+---
+
+## 📊 Logging
+
+The application uses structured JSON logs with Winston.
+
+Example logs:
 
 ```json
-{ "level": "info",  "event": "INGESTION_START",     "timestamp": "2026-04-24T10:00:00Z" }
-{ "level": "info",  "event": "PRICE_FETCHED",        "symbol": "BTC", "price": 65230.42, "durationMs": 210 }
-{ "level": "info",  "event": "PRICE_TRANSFORMED",    "symbol": "BTC", "variation24h": 2.37 }
-{ "level": "info",  "event": "CACHE_SET",            "key": "latest:BTC" }
-{ "level": "warn",  "event": "ALERT_TRIGGERED",      "symbol": "BTC", "variation24h": 5.2, "threshold": 3.0 }
-{ "level": "error", "event": "INGESTION_FAILED",     "reason": "CoinGecko API timeout", "durationMs": 5000 }
-{ "level": "info",  "event": "CACHE_HIT",            "key": "latest:ETH", "servedFromCache": true }
+{
+  "level": "info",
+  "message": {
+    "event": "INGESTION_START",
+    "source": "CoinGecko",
+    "coins": ["bitcoin", "ethereum", "solana"]
+  },
+  "timestamp": "2026-04-24T14:00:00.000Z"
+}
 ```
 
-> These logs are structured JSON — ready to be shipped to an ELK Stack (Elasticsearch + Logstash + Kibana) or AWS CloudWatch Logs.
+```json
+{
+  "level": "info",
+  "message": {
+    "event": "CACHE_HIT",
+    "key": "latest:BTC"
+  },
+  "timestamp": "2026-04-24T14:00:10.000Z"
+}
+```
+
+These logs are designed to be compatible with future observability tools such as ELK or CloudWatch.
 
 ---
 
-## 🗂️ Backlog
+## ✅ Tests
 
-### Sprint 1 — Local MVP
+The project includes unit tests for:
 
-| #   | User Story                                                               | Acceptance Criteria                                       |
-| --- | ------------------------------------------------------------------------ | --------------------------------------------------------- |
-| US1 | As a system, I want to fetch BTC/ETH/SOL prices every 60s                | Cron job runs, API called, response logged                |
-| US2 | As a system, I want to store raw API responses before transformation     | Raw payload saved in `raw_prices` with timestamp          |
-| US3 | As a system, I want to transform raw data into structured market records | `market_data` row created with price, variation, high/low |
-| US4 | As a user, I want to retrieve the latest price for a symbol via REST API | `GET /api/prices/BTC` returns valid JSON in < 100ms       |
-| US5 | As a PO, I want structured logs on every ingestion cycle                 | Winston logs event, duration, symbol, success/error       |
+- Price variation calculation
+- CoinGecko payload transformation
+- Missing coin handling
+- Redis cache set/get/delete logic
+- Cache hit and cache miss behavior
+- Redis key normalization
+- Cache TTL usage
 
-### Sprint 2 — Technical credibility
+Run tests:
 
-| #    | User Story                                                    | Acceptance Criteria                                        |
-| ---- | ------------------------------------------------------------- | ---------------------------------------------------------- |
-| US6  | As a system, I want Redis to cache latest prices              | Cache hit on second request, `source: "cache"` in response |
-| US7  | As a dev, I want to run the full stack with one command       | `docker-compose up` starts API + PostgreSQL + Redis        |
-| US8  | As a consumer, I want self-documented API endpoints           | Swagger UI accessible at `/api/docs`                       |
-| US9  | As a dev, I want unit tests on the transformation logic       | Jest tests pass on variation calculation edge cases        |
-| US10 | As an architect, I want to simulate event-driven flow locally | EventEmitter connects ingestion → transformation → alert   |
+```bash
+npm test
+```
 
-### Sprint 3 — AWS Cloud version
+Run formatting:
 
-| #    | User Story                                                         | Acceptance Criteria                                              |
-| ---- | ------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| US11 | As a team, I want ingestion logic deployable as AWS Lambda         | Lambda deployed via SAM/CDK, triggered by EventBridge Scheduler  |
-| US12 | As a team, I want raw data stored in S3                            | JSON objects uploaded to raw bucket per ingestion cycle          |
-| US13 | As a team, I want transformation triggered by an EventBridge event | Lambda triggered by `PriceFetchedEvent` published to EventBridge |
-| US14 | As a team, I want processed data stored in RDS                     | MarketData rows written to RDS PostgreSQL                        |
-| US15 | As a user, I want the API exposed via API Gateway                  | GET /prices/BTC returns 200 via API Gateway endpoint             |
+```bash
+npm run format
+```
+
+Check formatting:
+
+```bash
+npm run format:check
+```
 
 ---
 
@@ -331,87 +455,91 @@ ingestion.service.fetchAndStore()
 ### Prerequisites
 
 - Node.js >= 18
-- Docker + Docker Compose
+- Docker
+- Docker Compose
 - Git
 
-### Run
+### Run locally
 
 ```bash
-git clone https://github.com/your-username/marketpulse-pipeline.git
-cd marketpulse-pipeline
+git clone https://github.com/FekherJ/MarketPulse.git
+cd MarketPulse
 cp .env.example .env
-docker-compose up -d        # Starts PostgreSQL + Redis
+docker-compose up -d
 npm install
-npm run dev                 # Starts API + cron job
+npm run dev
 ```
 
-### Environment variables
+The API runs on:
+
+```text
+http://localhost:3000
+```
+
+The scheduled ingestion job starts automatically when the server starts.
+
+---
+
+## 🔐 Environment Variables
 
 ```env
-# API
 PORT=3000
 NODE_ENV=development
 
-# PostgreSQL
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=marketpulse
 DB_USER=postgres
 DB_PASSWORD=postgres
 
-# Redis
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-# Ingestion
 COINGECKO_BASE_URL=https://api.coingecko.com/api/v3
 FETCH_INTERVAL_SECONDS=60
-
-# Alerts
-ALERT_VARIATION_THRESHOLD_PCT=3.0
 ```
-
----
-
-## 🗣️ Interview Story
-
-> _"I built a small event-driven data pipeline to develop hands-on understanding of modern backend and cloud architectures._
->
-> _The pipeline ingests crypto market prices from a public API on a scheduled basis. Raw responses are stored before any processing — this is the equivalent of a data lake layer, keeping an immutable audit trail. An event then triggers a transformation service that cleans the data, computes 24h price variation, and stores structured records in a relational database. A Redis cache sits in front of the REST API to avoid unnecessary database reads for frequently accessed latest prices._
->
-> _I added structured JSON logging throughout — every ingestion cycle is logged with event type, duration, and outcome, which makes the system observable and prepares it for an ELK stack or CloudWatch integration._
->
-> _Locally, I simulated the event-driven flow using Node.js EventEmitter. I then mapped each component to its AWS equivalent: Lambda for ingestion and transformation, S3 for raw storage, EventBridge for the event bus, RDS for processed data, ElastiCache for Redis, and API Gateway to expose the REST interface. That mapping exercise was as valuable as building the pipeline itself — it forced me to understand why each service exists and what it replaces._
->
-> _The goal was not to become a cloud engineer, but to close the gap between functional product delivery and the architecture decisions I need to understand and challenge as a Technical PO."_
 
 ---
 
 ## 🚀 Roadmap
 
-- [x] Architecture design & documentation
-- [x] PRD + backlog
-- [ ] Sprint 1 — Local MVP (ingestion + transformation + REST API + logs)
-- [ ] Sprint 2 — Redis + Docker + Swagger + tests + event simulation
-- [ ] Sprint 3 — AWS Lambda + S3 + EventBridge + API Gateway + CloudWatch
-- [ ] GraphQL endpoint (bonus — CACIB TEAS stack alignment)
-- [ ] Kibana dashboard on Docker (ELK local stack)
+- [x] Local architecture design
+- [x] Docker Compose setup for PostgreSQL and Redis
+- [x] PostgreSQL schema: `raw_prices` and `market_data`
+- [x] Express.js REST API
+- [x] Health check endpoint
+- [x] CoinGecko ingestion service
+- [x] ETL-style transformation layer
+- [x] Redis cache for latest prices
+- [x] Scheduled ingestion with `node-cron`
+- [x] Structured JSON logging with Winston
+- [x] Unit tests for transformation logic
+- [x] Unit tests for cache service
+- [x] Prettier formatting
+- [ ] Swagger / OpenAPI documentation
+- [ ] AWS proof of concept: EventBridge Scheduler → Lambda → S3 → CloudWatch
+- [ ] GraphQL endpoint
+- [ ] ELK / Kibana dashboard
 
 ---
 
-## 📄 Documentation
+## 🗣️ Interview Story
 
-- [`docs/architecture.md`](docs/architecture.md) — Architecture deep-dive
-- [`docs/product-requirements.md`](docs/product-requirements.md) — Full PRD
-- [`docs/backlog.md`](docs/backlog.md) — Detailed sprint backlog
-- [`docs/adr/`](docs/adr/) — Architecture Decision Records
-- [`docs/aws-mapping.md`](docs/aws-mapping.md) — V1 → AWS V2 migration plan
+I built MarketPulse to close the gap between functional product delivery and hands-on understanding of modern backend and data architectures.
+
+The pipeline ingests crypto market prices from CoinGecko on a scheduled basis. Raw responses are stored before transformation, which acts as a local raw landing zone similar to what S3 would provide in a cloud architecture. The transformation layer normalizes the payload into structured BTC, ETH and SOL market records, which are stored in PostgreSQL.
+
+I added Redis as a caching layer for frequently requested latest prices. The API checks Redis first, falls back to PostgreSQL on cache miss, and refreshes the cache with a TTL. I also added structured JSON logs and unit tests around the transformation and cache layers.
+
+Locally, scheduled ingestion is handled with `node-cron`. In an AWS version, this would map naturally to EventBridge Scheduler triggering Lambda functions, with S3 for raw storage, RDS for structured data, ElastiCache for Redis, API Gateway for HTTP exposure, and CloudWatch for logs.
+
+The goal was not to become a cloud engineer, but to develop enough technical depth to better understand, challenge and discuss architecture decisions as a Technical Product Owner or Technical Business Analyst.
 
 ---
 
 ## 👤 Author
 
-**Fekher** — Technical Product Owner | Financial markets & data architectures  
-[LinkedIn](#) · [GitHub](#)
+**Fekher** — Technical Product Owner / Technical Business Analyst  
+Financial markets, data pipelines and cloud-ready architectures
 
-> _Built to deepen technical architecture knowledge across event-driven systems, cloud-native patterns, and data pipelines — applied to a financial markets context._
+GitHub: [FekherJ](https://github.com/FekherJ)
