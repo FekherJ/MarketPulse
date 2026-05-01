@@ -1,6 +1,4 @@
-# 📈 MarketPulse Pipeline
-
-> # MarketPulse — Data Pipeline Monitoring API
+# 📈 MarketPulse — Data Pipeline Monitoring API
 
 MarketPulse is a backend/data engineering learning project that simulates a production-grade data pipeline.
 
@@ -21,10 +19,14 @@ The project demonstrates a complete backend/data pipeline flow:
 - External market data ingestion from CoinGecko
 - Raw payload storage in PostgreSQL
 - ETL-style transformation into structured market records
+- Data quality checks before inserting structured data
+- Ingestion run tracking for pipeline observability
 - Redis cache for frequently accessed latest prices
 - REST API exposure through Express.js
 - Scheduled ingestion with `node-cron`
 - Structured JSON logs with Winston
+- SQL analysis queries for monitoring and diagnostics
+- SQL index and performance documentation
 - Unit tests for transformation and cache logic
 - AWS architecture mapping for a future cloud version
 
@@ -37,10 +39,15 @@ MarketPulse currently includes:
 - Express.js REST API
 - CoinGecko market data ingestion
 - PostgreSQL storage for raw and processed market data
+- PostgreSQL ingestion run tracking through `ingestion_runs`
+- Data quality checks stored in `data_quality_checks`
 - ETL-style transformation layer
 - Redis cache for latest BTC / ETH / SOL prices
 - Scheduled ingestion every 60 seconds with `node-cron`
+- Monitoring API for ingestion runs and quality checks
 - Structured JSON logs with Winston
+- SQL analysis queries for monitoring and diagnostics
+- SQL index and performance documentation
 - Unit tests with Jest
 - Docker Compose setup for PostgreSQL and Redis
 - Prettier formatting
@@ -48,8 +55,8 @@ MarketPulse currently includes:
 Planned next steps:
 
 - Swagger / OpenAPI documentation
+- Additional integration tests
 - AWS proof of concept: EventBridge Scheduler → Lambda → S3 → CloudWatch
-- GraphQL endpoint
 - ELK / Kibana dashboard
 
 ---
@@ -69,6 +76,9 @@ Scheduled Job / Manual Trigger
 Ingestion Service
 (fetch BTC, ETH, SOL prices)
       │
+      ├──► ingestion_runs
+      │    (track status, duration, records, errors)
+      │
       ▼
 Raw Data Store
 PostgreSQL: raw_prices
@@ -76,7 +86,12 @@ PostgreSQL: raw_prices
       │
       ▼
 Transformation Service
-(normalize data + compute 24h variation)
+(normalize external payload into internal records)
+      │
+      ▼
+Data Quality Checks
+PostgreSQL: data_quality_checks
+(validate payload and transformed records)
       │
       ▼
 Processed Data Store
@@ -165,6 +180,11 @@ marketpulse-pipeline/
 ├── db/
 │   └── init.sql
 │
+├── docs/
+│   └── sql-analysis/
+│       ├── marketpulse_analysis.sql
+│       └── indexes.md
+│
 ├── src/
 │   ├── app.js
 │   ├── server.js
@@ -180,14 +200,18 @@ marketpulse-pipeline/
 │   ├── services/
 │   │   ├── ingestion.service.js
 │   │   ├── transformation.service.js
+│   │   ├── dataQuality.service.js
 │   │   └── cache.service.js
 │   │
 │   ├── repositories/
 │   │   ├── rawData.repository.js
-│   │   └── marketData.repository.js
+│   │   ├── marketData.repository.js
+│   │   ├── ingestionRun.repository.js
+│   │   └── dataQuality.repository.js
 │   │
 │   ├── routes/
 │   │   ├── prices.routes.js
+│   │   ├── ingestion.routes.js
 │   │   └── health.routes.js
 │   │
 │   └── utils/
@@ -202,13 +226,18 @@ marketpulse-pipeline/
 
 ## 🔌 API Endpoints
 
-| Method | Endpoint                               | Description                                                      |
-| ------ | -------------------------------------- | ---------------------------------------------------------------- |
-| GET    | `/health`                              | Checks API, PostgreSQL and Redis health                          |
-| POST   | `/api/prices/fetch`                    | Manually triggers CoinGecko ingestion                            |
-| GET    | `/api/prices/latest`                   | Returns latest prices for all tracked symbols                    |
-| GET    | `/api/prices/latest/:symbol`           | Returns latest price for BTC, ETH or SOL using Redis cache first |
-| GET    | `/api/prices/history/:symbol?limit=10` | Returns price history for a symbol                               |
+| Method | Endpoint                                  | Description                                                      |
+| ------ | ----------------------------------------- | ---------------------------------------------------------------- |
+| GET    | `/health`                                 | Checks API, PostgreSQL and Redis health                          |
+| POST   | `/api/prices/fetch`                       | Manually triggers CoinGecko ingestion                            |
+| GET    | `/api/prices/latest`                      | Returns latest prices for all tracked symbols                    |
+| GET    | `/api/prices/latest/:symbol`              | Returns latest price for BTC, ETH or SOL using Redis cache first |
+| GET    | `/api/prices/history/:symbol?limit=10`    | Returns price history for a symbol                               |
+| GET    | `/api/ingestions/runs`                    | Returns latest ingestion runs                                    |
+| GET    | `/api/ingestions/runs/failed`             | Returns failed ingestion runs                                    |
+| GET    | `/api/ingestions/runs/:id`                | Returns details of a specific ingestion run                      |
+| GET    | `/api/ingestions/runs/:id/quality-checks` | Returns data quality checks for a specific ingestion run         |
+| GET    | `/api/ingestions/quality-checks/failed`   | Returns failed data quality checks                               |
 
 ---
 
@@ -247,14 +276,20 @@ Example response:
   "status": "SUCCESS",
   "message": "Prices fetched, transformed and stored successfully",
   "data": {
-    "rawPriceId": 1,
+    "ingestionRunId": 7,
+    "rawPriceId": 2903,
     "recordsCount": 3,
     "records": [
       {
-        "id": 1,
+        "id": 8707,
         "symbol": "BTC",
-        "price": "78000.000000",
-        "currency": "USD"
+        "price": "78241.000000",
+        "currency": "USD",
+        "variation24h": "2.5365",
+        "high24h": null,
+        "low24h": null,
+        "raw_price_id": 2903,
+        "captured_at": "2026-05-01T14:40:29.478Z"
       }
     ]
   }
@@ -299,6 +334,49 @@ Example response:
 curl "http://localhost:3000/api/prices/history/BTC?limit=10"
 ```
 
+### Get ingestion runs
+
+```bash
+curl http://localhost:3000/api/ingestions/runs
+```
+
+### Get failed ingestion runs
+
+```bash
+curl http://localhost:3000/api/ingestions/runs/failed
+```
+
+### Get quality checks for an ingestion run
+
+```bash
+curl http://localhost:3000/api/ingestions/runs/7/quality-checks
+```
+
+Example response:
+
+```json
+{
+  "status": "SUCCESS",
+  "count": 6,
+  "data": [
+    {
+      "id": 1,
+      "ingestion_run_id": 7,
+      "check_name": "PAYLOAD_NOT_EMPTY",
+      "status": "PASSED",
+      "checked_at": "2026-05-01T14:40:29.483Z",
+      "error_message": null
+    }
+  ]
+}
+```
+
+### Get failed quality checks
+
+```bash
+curl http://localhost:3000/api/ingestions/quality-checks/failed
+```
+
 ---
 
 ## 📦 Data Model
@@ -333,10 +411,66 @@ CREATE TABLE IF NOT EXISTS market_data (
 );
 ```
 
+### `ingestion_runs`
+
+Tracks every execution of the ingestion pipeline.
+
+```sql
+CREATE TABLE IF NOT EXISTS ingestion_runs (
+    id SERIAL PRIMARY KEY,
+    source VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    started_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    ended_at TIMESTAMP,
+    duration_ms INTEGER,
+    records_fetched INTEGER DEFAULT 0,
+    records_inserted INTEGER DEFAULT 0,
+    error_message TEXT
+);
+```
+
+Each ingestion cycle creates one row in `ingestion_runs`.
+
+Typical statuses:
+
+```text
+RUNNING
+SUCCESS
+FAILED
+```
+
+### `data_quality_checks`
+
+Stores the result of data quality validations executed during each ingestion run.
+
+```sql
+CREATE TABLE IF NOT EXISTS data_quality_checks (
+    id SERIAL PRIMARY KEY,
+    ingestion_run_id INTEGER REFERENCES ingestion_runs(id),
+    check_name VARCHAR(100) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    checked_at TIMESTAMP DEFAULT NOW(),
+    error_message TEXT
+);
+```
+
+Current quality checks:
+
+```text
+PAYLOAD_NOT_EMPTY
+EXPECTED_COINS_PRESENT
+TRANSFORMED_RECORDS_NOT_EMPTY
+SYMBOL_PRESENT
+PRICE_NOT_NULL
+PRICE_POSITIVE
+```
+
 Each ingestion cycle creates:
 
 ```text
 1 row in raw_prices
+1 row in ingestion_runs
+6 rows in data_quality_checks
 3 rows in market_data: BTC, ETH, SOL
 ```
 
@@ -350,17 +484,86 @@ node-cron job or POST /api/prices/fetch
       ▼
 ingestion.service.fetchTransformAndStorePrices()
       │
+      ├── Create ingestion run with status RUNNING
       ├── Fetch prices from CoinGecko
       ├── Store raw JSON payload in raw_prices
       ├── Transform CoinGecko payload into market records
+      ├── Run data quality checks
+      ├── Store quality check results in data_quality_checks
       ├── Store BTC / ETH / SOL records in market_data
-      └── Refresh Redis cache keys:
-          - latest:BTC
-          - latest:ETH
-          - latest:SOL
+      ├── Refresh Redis cache keys:
+      │     - latest:BTC
+      │     - latest:ETH
+      │     - latest:SOL
+      └── Mark ingestion run as SUCCESS or FAILED
 ```
 
 The local scheduled job uses `node-cron`. In a cloud version, this would naturally map to EventBridge Scheduler triggering a Lambda function.
+
+---
+
+## 🧩 Data Engineering Features
+
+MarketPulse is designed to demonstrate backend and data engineering concepts beyond a simple API.
+
+### Raw data storage
+
+The original CoinGecko payload is stored in `raw_prices` before transformation. This allows auditability and potential replay if the transformation logic changes.
+
+### Ingestion run tracking
+
+Each pipeline execution is tracked in `ingestion_runs` with:
+
+- source
+- status
+- start and end timestamps
+- duration
+- records fetched
+- records inserted
+- error message if the run fails
+
+This makes the pipeline observable and easier to troubleshoot.
+
+### Data quality checks
+
+Each ingestion run executes quality checks before inserting structured records into `market_data`.
+
+Current checks validate that:
+
+- the payload is not empty;
+- expected coins are present;
+- transformed records are generated;
+- each record has a symbol;
+- prices are not null;
+- prices are positive.
+
+If a quality check fails, the run can be marked as failed and the error is stored for investigation.
+
+### SQL monitoring and diagnostics
+
+The project includes SQL queries under `docs/sql-analysis/` to monitor:
+
+- latest prices per symbol;
+- ingestion success rate;
+- ingestion duration;
+- records inserted per day;
+- failed quality checks;
+- quality check summary per ingestion run.
+
+### Performance notes
+
+The project documents SQL index usage in:
+
+```text
+docs/sql-analysis/indexes.md
+```
+
+The main index supports price history queries by symbol and timestamp:
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_market_data_symbol_captured_at
+ON market_data(symbol, captured_at DESC);
+```
 
 ---
 
@@ -512,40 +715,54 @@ FETCH_INTERVAL_SECONDS=60
 - [x] Local architecture design
 - [x] Docker Compose setup for PostgreSQL and Redis
 - [x] PostgreSQL schema: `raw_prices` and `market_data`
+- [x] PostgreSQL schema: `ingestion_runs`
+- [x] PostgreSQL schema: `data_quality_checks`
 - [x] Express.js REST API
 - [x] Health check endpoint
 - [x] CoinGecko ingestion service
 - [x] ETL-style transformation layer
 - [x] Redis cache for latest prices
 - [x] Scheduled ingestion with `node-cron`
+- [x] Ingestion run tracking
+- [x] Monitoring API for ingestion runs
+- [x] Data quality checks
+- [x] API endpoints for quality checks
 - [x] Structured JSON logging with Winston
+- [x] SQL analysis queries
+- [x] SQL index and performance documentation
 - [x] Unit tests for transformation logic
 - [x] Unit tests for cache service
 - [x] Prettier formatting
 - [ ] Swagger / OpenAPI documentation
+- [ ] Integration tests for ingestion and monitoring endpoints
 - [ ] AWS proof of concept: EventBridge Scheduler → Lambda → S3 → CloudWatch
-- [ ] GraphQL endpoint
 - [ ] ELK / Kibana dashboard
 
 ---
 
 ## 🗣️ Interview Story
 
-I built MarketPulse to close the gap between functional product delivery and hands-on understanding of modern backend and data architectures.
+I built MarketPulse to strengthen my hands-on understanding of backend, data pipeline and integration engineering concepts.
 
-The pipeline ingests crypto market prices from CoinGecko on a scheduled basis. Raw responses are stored before transformation, which acts as a local raw landing zone similar to what S3 would provide in a cloud architecture. The transformation layer normalizes the payload into structured BTC, ETH and SOL market records, which are stored in PostgreSQL.
+The project ingests external market data from CoinGecko on a scheduled basis. Raw responses are stored before transformation, which acts as a local raw landing zone similar to what S3 would provide in a cloud architecture. The transformation layer normalizes the payload into structured BTC, ETH and SOL market records, which are stored in PostgreSQL.
 
-I added Redis as a caching layer for frequently requested latest prices. The API checks Redis first, falls back to PostgreSQL on cache miss, and refreshes the cache with a TTL. I also added structured JSON logs and unit tests around the transformation and cache layers.
+I added an ingestion monitoring layer through the `ingestion_runs` table. Each pipeline execution is tracked with a status, duration, number of records fetched, number of records inserted and error message if the run fails.
 
-Locally, scheduled ingestion is handled with `node-cron`. In an AWS version, this would map naturally to EventBridge Scheduler triggering Lambda functions, with S3 for raw storage, RDS for structured data, ElastiCache for Redis, API Gateway for HTTP exposure, and CloudWatch for logs.
+I also added a data quality layer through the `data_quality_checks` table. Each ingestion run validates that the payload is not empty, expected assets are present, transformed records exist, symbols are present, and prices are valid before storing structured data.
 
-The goal was not to become a cloud engineer, but to develop enough technical depth to better understand, challenge and discuss architecture decisions as a Technical Product Owner or Technical Business Analyst.
+Redis is used as a caching layer for frequently requested latest prices. The API checks Redis first, falls back to PostgreSQL on cache miss, and refreshes the cache with a TTL.
+
+The project also includes structured JSON logs, SQL analysis queries, performance notes around indexes, and unit tests around the transformation and cache layers.
+
+Locally, scheduled ingestion is handled with `node-cron`. In an AWS version, this could map to EventBridge Scheduler triggering Lambda functions, with S3 for raw storage, RDS PostgreSQL for structured data, ElastiCache for Redis, API Gateway for HTTP exposure, and CloudWatch for logs.
+
+The goal of this project is to build practical experience around data ingestion, transformation, quality checks, observability, SQL diagnostics, caching and cloud-ready backend architecture.
 
 ---
 
 ## 👤 Author
 
-**Fekher** — Technical Product Owner / Technical Business Analyst  
-Financial markets, data pipelines and cloud-ready architectures
+**Fekher** — Technical Business Analyst transitioning toward Data / Integration Engineering  
+Financial systems, data pipelines, SQL, APIs and cloud-ready architectures
 
 GitHub: [FekherJ](https://github.com/FekherJ)
