@@ -7,11 +7,21 @@ const { saveMarketData } = require("../repositories/marketData.repository");
 const { transformCoinGeckoPayload } = require("./transformation.service");
 const { setLatestPrice } = require("./cache.service");
 
+// Repository for tracking ingestion run status (start, success, failure)
 const {
   createIngestionRun,
   markIngestionRunSuccess,
   markIngestionRunFailed,
 } = require("../repositories/ingestionRun.repository");
+
+// Repository for storing data quality check results
+const { saveDataQualityChecks } = require("../repositories/dataQuality.repository");
+
+// Service for running data quality validations on ingested data
+const {
+  runDataQualityChecks,
+  hasFailedQualityChecks,
+} = require("./dataQuality.service");
 
 // List of coins to fetch from CoinGecko API
 // This configuration is used both for building the API request and for transformation mapping
@@ -89,6 +99,27 @@ async function fetchTransformAndStorePrices() {
 
     // Step 3: Transform external format to internal schema
     const transformedRecords = transformCoinGeckoPayload(rawRecord);
+
+    // Step 3.5: Run data quality checks
+    const qualityChecks = runDataQualityChecks(
+      ingestionRun.id,
+      payload,
+      transformedRecords,
+      COINS
+    );
+
+    if (hasFailedQualityChecks(qualityChecks)) {
+      throw new Error("Data quality checks failed");
+    }
+
+const savedQualityChecks = await saveDataQualityChecks(qualityChecks);
+
+logger.info({
+  event: "DATA_QUALITY_CHECKS_COMPLETED",
+  ingestionRunId: ingestionRun.id,
+  totalChecks: savedQualityChecks.length,
+  failedChecks: savedQualityChecks.filter((check) => check.status === "FAILED").length,
+});
 
     // Step 4: Save each transformed record to database and update cache
     const savedRecords = [];
