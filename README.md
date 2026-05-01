@@ -1,6 +1,12 @@
 # 📈 MarketPulse Pipeline
 
-> A scheduled crypto market data pipeline for ingestion, transformation, caching, REST API exposure, structured logging, and cloud-ready architecture mapping.
+> # MarketPulse — Data Pipeline Monitoring API
+
+MarketPulse is a backend/data engineering learning project that simulates a production-grade data pipeline.
+
+It ingests external market data, stores raw payloads, transforms them into structured PostgreSQL records, exposes them through a REST API, caches latest values in Redis, and tracks the ingestion lifecycle through logs and database records.
+
+The crypto market API is used only as an external data source. The main goal of the project is to demonstrate data ingestion, transformation, storage, caching, monitoring, SQL analysis and cloud-ready backend architecture.
 
 ---
 

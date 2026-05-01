@@ -1,5 +1,4 @@
-// Express application factory - creates the main HTTP server instance
-// This file configures middleware and mounts all route handlers
+// Creates the main HTTP server instance
 const express = require("express");
 
 // Import route modules - each handles a specific domain of the API
@@ -7,6 +6,7 @@ const express = require("express");
 // pricesRoutes: /api/prices endpoints for market data operations
 const healthRoutes = require("./routes/health.routes");
 const pricesRoutes = require("./routes/prices.routes");
+const ingestionRoutes = require("./routes/ingestion.routes");
 
 // Create the Express application instance
 const app = express();
@@ -20,6 +20,7 @@ app.use(express.json());
 // All price routes will be accessible at /api/prices/*
 app.use("/health", healthRoutes);
 app.use("/api/prices", pricesRoutes);
+app.use("/api/ingestions", ingestionRoutes);
 
 // Export the configured app for use in server.js
 // The app is imported and listen() is called to start the HTTP server

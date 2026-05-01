@@ -7,6 +7,12 @@ const { saveMarketData } = require("../repositories/marketData.repository");
 const { transformCoinGeckoPayload } = require("./transformation.service");
 const { setLatestPrice } = require("./cache.service");
 
+const {
+  createIngestionRun,
+  markIngestionRunSuccess,
+  markIngestionRunFailed,
+} = require("../repositories/ingestionRun.repository");
+
 // List of coins to fetch from CoinGecko API
 // This configuration is used both for building the API request and for transformation mapping
 const COINS = ["bitcoin", "ethereum", "solana"];
@@ -52,8 +58,23 @@ async function fetchPricesFromCoinGecko() {
 
 // Main ETL function - fetch, transform, and store prices in one operation
 // This is the core function called by both the API endpoint and the scheduled job
+// Main ETL function - fetch, transform, and store prices in one operation
+// This is the core function called by both the API endpoint and the scheduled job
 async function fetchTransformAndStorePrices() {
+  const pipelineStartTime = Date.now();
+  let ingestionRun = null;
+
   try {
+    // Step 0: Create ingestion run for pipeline monitoring
+    ingestionRun = await createIngestionRun("CoinGecko");
+
+    logger.info({
+      event: "INGESTION_RUN_CREATED",
+      ingestionRunId: ingestionRun.id,
+      source: ingestionRun.source,
+      status: ingestionRun.status,
+    });
+
     // Step 1: Fetch prices from external API
     const payload = await fetchPricesFromCoinGecko();
 
@@ -62,6 +83,7 @@ async function fetchTransformAndStorePrices() {
 
     logger.info({
       event: "RAW_PRICE_STORED",
+      ingestionRunId: ingestionRun.id,
       rawPriceId: rawRecord.id,
     });
 
@@ -73,11 +95,13 @@ async function fetchTransformAndStorePrices() {
 
     for (const record of transformedRecords) {
       const saved = await saveMarketData(record);
+
       // Update Redis cache with the latest price
       await setLatestPrice(saved.symbol, saved);
 
       logger.info({
         event: "MARKET_DATA_STORED",
+        ingestionRunId: ingestionRun.id,
         symbol: saved.symbol,
         price: saved.price,
         rawPriceId: saved.raw_price_id,
@@ -86,17 +110,58 @@ async function fetchTransformAndStorePrices() {
       savedRecords.push(saved);
     }
 
+    const durationMs = Date.now() - pipelineStartTime;
+
+    // Step 5: Mark ingestion run as SUCCESS
+    const updatedRun = await markIngestionRunSuccess(
+      ingestionRun.id,
+      transformedRecords.length,
+      savedRecords.length,
+      durationMs
+    );
+
+    logger.info({
+      event: "INGESTION_RUN_SUCCESS",
+      ingestionRunId: updatedRun.id,
+      status: updatedRun.status,
+      durationMs: updatedRun.duration_ms,
+      recordsFetched: updatedRun.records_fetched,
+      recordsInserted: updatedRun.records_inserted,
+    });
+
     // Return summary of the ingestion operation
     return {
+      ingestionRunId: updatedRun.id,
       rawPriceId: rawRecord.id,
       recordsCount: savedRecords.length,
       records: savedRecords,
     };
   } catch (error) {
+    const durationMs = Date.now() - pipelineStartTime;
+
     logger.error({
       event: "INGESTION_FAILED",
+      ingestionRunId: ingestionRun ? ingestionRun.id : null,
       message: error.message,
+      durationMs,
     });
+
+    // If the ingestion run was created, mark it as FAILED
+    if (ingestionRun && ingestionRun.id) {
+      try {
+        await markIngestionRunFailed(
+          ingestionRun.id,
+          error.message,
+          durationMs
+        );
+      } catch (updateError) {
+        logger.error({
+          event: "INGESTION_RUN_FAILED_UPDATE_ERROR",
+          ingestionRunId: ingestionRun.id,
+          message: updateError.message,
+        });
+      }
+    }
 
     throw error;
   }
