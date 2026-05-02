@@ -27,7 +27,8 @@ The project demonstrates a complete backend/data pipeline flow:
 - Structured JSON logs with Winston
 - SQL analysis queries for monitoring and diagnostics
 - SQL index and performance documentation
-- Unit tests for transformation and cache logic
+- Unit tests for transformation, cache, data quality and ingestion orchestration logic
+- GitHub Actions CI for automated format checks and test execution
 - AWS architecture mapping for a future cloud version
 
 ---
@@ -48,14 +49,15 @@ MarketPulse currently includes:
 - Structured JSON logs with Winston
 - SQL analysis queries for monitoring and diagnostics
 - SQL index and performance documentation
-- Unit tests with Jest
+- Unit tests with Jest for transformation, cache, data quality and ingestion orchestration
 - Docker Compose setup for PostgreSQL and Redis
 - Prettier formatting
+- GitHub Actions CI for automated formatting checks and test execution
 
 Planned next steps:
 
 - Swagger / OpenAPI documentation
-- Additional integration tests
+- Additional integration tests for ingestion and monitoring endpoints
 - AWS proof of concept: EventBridge Scheduler → Lambda → S3 → CloudWatch
 - ELK / Kibana dashboard
 
@@ -111,6 +113,45 @@ The current implementation is local, but the architecture is designed so each co
 
 ---
 
+## 🧪 Testing and CI
+
+MarketPulse includes automated tests for the main backend/data pipeline components:
+
+- cache service
+- transformation service
+- data quality service
+- ingestion orchestration service
+
+Run the test suite locally:
+
+```bash
+npm test
+```
+
+Check formatting:
+
+```bash
+npm run format:check
+```
+
+Format the codebase:
+
+```bash
+npm run format
+```
+
+The project also includes a GitHub Actions CI workflow that runs automatically on every push and pull request to `main`.
+
+The CI pipeline performs:
+
+- dependency installation
+- Prettier formatting check
+- Jest test suite execution
+
+This ensures that the project can be installed, formatted and tested successfully in a clean environment, not only on the local machine.
+
+---
+
 ## ☁️ AWS Mapping
 
 The AWS version is not implemented yet. This table explains how the current local components would map to AWS services in a future version.
@@ -162,6 +203,7 @@ Lambda Ingestion
 | Scheduler        | node-cron      | Local scheduled ingestion       |
 | Logging          | Winston        | Structured JSON logs            |
 | Testing          | Jest           | Unit tests                      |
+| CI               | GitHub Actions | Automated checks on push/PR     |
 | Containerization | Docker Compose | Local PostgreSQL and Redis      |
 | Formatting       | Prettier       | Code formatting                 |
 
@@ -176,6 +218,10 @@ marketpulse-pipeline/
 ├── docker-compose.yml
 ├── .env.example
 ├── package.json
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 │
 ├── db/
 │   └── init.sql
@@ -218,8 +264,10 @@ marketpulse-pipeline/
 │       └── calculateVariation.js
 │
 └── tests/
-    ├── transformation.test.js
-    └── cache.test.js
+    ├── cache.test.js
+    ├── dataQuality.test.js
+    ├── ingestion.test.js
+    └── transformation.test.js
 ```
 
 ---
@@ -465,7 +513,7 @@ PRICE_NOT_NULL
 PRICE_POSITIVE
 ```
 
-Each ingestion cycle creates:
+Each successful ingestion cycle creates:
 
 ```text
 1 row in raw_prices
@@ -473,6 +521,8 @@ Each ingestion cycle creates:
 6 rows in data_quality_checks
 3 rows in market_data: BTC, ETH, SOL
 ```
+
+If a data quality check fails, the quality check results are still stored, the ingestion run is marked as `FAILED`, and structured market data is not inserted.
 
 ---
 
@@ -490,6 +540,7 @@ ingestion.service.fetchTransformAndStorePrices()
       ├── Transform CoinGecko payload into market records
       ├── Run data quality checks
       ├── Store quality check results in data_quality_checks
+      ├── Stop the pipeline if quality checks fail
       ├── Store BTC / ETH / SOL records in market_data
       ├── Refresh Redis cache keys:
       │     - latest:BTC
@@ -537,7 +588,7 @@ Current checks validate that:
 - prices are not null;
 - prices are positive.
 
-If a quality check fails, the run can be marked as failed and the error is stored for investigation.
+If a quality check fails, the check results are stored in `data_quality_checks`, the ingestion run is marked as `FAILED`, and the pipeline stops before inserting structured market data.
 
 ### SQL monitoring and diagnostics
 
@@ -631,13 +682,23 @@ These logs are designed to be compatible with future observability tools such as
 
 The project includes unit tests for:
 
-- Price variation calculation
+- price variation calculation
 - CoinGecko payload transformation
-- Missing coin handling
+- missing coin handling
 - Redis cache set/get/delete logic
-- Cache hit and cache miss behavior
+- cache hit and cache miss behavior
 - Redis key normalization
-- Cache TTL usage
+- cache TTL usage
+- data quality validation rules
+- ingestion orchestration success path
+- ingestion orchestration failure path
+
+The ingestion orchestration tests verify that:
+
+- data quality checks are persisted before failing an ingestion run;
+- market data is not inserted when quality checks fail;
+- failed ingestion runs are marked as `FAILED`;
+- successful ingestion runs are marked as `SUCCESS`.
 
 Run tests:
 
@@ -687,6 +748,18 @@ http://localhost:3000
 
 The scheduled ingestion job starts automatically when the server starts.
 
+### Stop local infrastructure
+
+```bash
+docker-compose down
+```
+
+### Check running containers
+
+```bash
+docker ps
+```
+
 ---
 
 ## 🔐 Environment Variables
@@ -732,7 +805,10 @@ FETCH_INTERVAL_SECONDS=60
 - [x] SQL index and performance documentation
 - [x] Unit tests for transformation logic
 - [x] Unit tests for cache service
+- [x] Unit tests for data quality service
+- [x] Unit tests for ingestion orchestration
 - [x] Prettier formatting
+- [x] GitHub Actions CI
 - [ ] Swagger / OpenAPI documentation
 - [ ] Integration tests for ingestion and monitoring endpoints
 - [ ] AWS proof of concept: EventBridge Scheduler → Lambda → S3 → CloudWatch
@@ -748,11 +824,11 @@ The project ingests external market data from CoinGecko on a scheduled basis. Ra
 
 I added an ingestion monitoring layer through the `ingestion_runs` table. Each pipeline execution is tracked with a status, duration, number of records fetched, number of records inserted and error message if the run fails.
 
-I also added a data quality layer through the `data_quality_checks` table. Each ingestion run validates that the payload is not empty, expected assets are present, transformed records exist, symbols are present, and prices are valid before storing structured data.
+I also added a data quality layer through the `data_quality_checks` table. Each ingestion run validates that the payload is not empty, expected assets are present, transformed records exist, symbols are present, and prices are valid before storing structured data. If a check fails, the results are persisted and the ingestion run is marked as failed.
 
 Redis is used as a caching layer for frequently requested latest prices. The API checks Redis first, falls back to PostgreSQL on cache miss, and refreshes the cache with a TTL.
 
-The project also includes structured JSON logs, SQL analysis queries, performance notes around indexes, and unit tests around the transformation and cache layers.
+The project also includes structured JSON logs, SQL analysis queries, performance notes around indexes, automated tests for the cache, transformation, data quality and ingestion orchestration layers, and a GitHub Actions CI workflow that checks formatting and runs the test suite on every push.
 
 Locally, scheduled ingestion is handled with `node-cron`. In an AWS version, this could map to EventBridge Scheduler triggering Lambda functions, with S3 for raw storage, RDS PostgreSQL for structured data, ElastiCache for Redis, API Gateway for HTTP exposure, and CloudWatch for logs.
 
