@@ -1,6 +1,11 @@
 const { pool } = require("../config/database");
 
-async function saveDataQualityCheck(ingestionRunId, checkName, status, errorMessage = null) {
+async function saveDataQualityCheck(
+  ingestionRunId,
+  checkName,
+  status,
+  errorMessage = null,
+) {
   const query = `
     INSERT INTO data_quality_checks (
       ingestion_run_id,
@@ -26,7 +31,7 @@ async function saveDataQualityChecks(checks) {
       check.ingestionRunId,
       check.checkName,
       check.status,
-      check.errorMessage || null
+      check.errorMessage || null,
     );
 
     savedChecks.push(saved);

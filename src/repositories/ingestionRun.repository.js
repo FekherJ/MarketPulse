@@ -13,7 +13,12 @@ async function createIngestionRun(source) {
   return result.rows[0];
 }
 
-async function markIngestionRunSuccess(id, recordsFetched, recordsInserted, durationMs) {
+async function markIngestionRunSuccess(
+  id,
+  recordsFetched,
+  recordsInserted,
+  durationMs,
+) {
   const query = `
     UPDATE ingestion_runs
     SET 

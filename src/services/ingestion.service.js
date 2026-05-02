@@ -15,7 +15,9 @@ const {
 } = require("../repositories/ingestionRun.repository");
 
 // Repository for storing data quality check results
-const { saveDataQualityChecks } = require("../repositories/dataQuality.repository");
+const {
+  saveDataQualityChecks,
+} = require("../repositories/dataQuality.repository");
 
 // Service for running data quality validations on ingested data
 const {
@@ -105,21 +107,23 @@ async function fetchTransformAndStorePrices() {
       ingestionRun.id,
       payload,
       transformedRecords,
-      COINS
+      COINS,
     );
 
     if (hasFailedQualityChecks(qualityChecks)) {
       throw new Error("Data quality checks failed");
     }
 
-const savedQualityChecks = await saveDataQualityChecks(qualityChecks);
+    const savedQualityChecks = await saveDataQualityChecks(qualityChecks);
 
-logger.info({
-  event: "DATA_QUALITY_CHECKS_COMPLETED",
-  ingestionRunId: ingestionRun.id,
-  totalChecks: savedQualityChecks.length,
-  failedChecks: savedQualityChecks.filter((check) => check.status === "FAILED").length,
-});
+    logger.info({
+      event: "DATA_QUALITY_CHECKS_COMPLETED",
+      ingestionRunId: ingestionRun.id,
+      totalChecks: savedQualityChecks.length,
+      failedChecks: savedQualityChecks.filter(
+        (check) => check.status === "FAILED",
+      ).length,
+    });
 
     // Step 4: Save each transformed record to database and update cache
     const savedRecords = [];
@@ -148,7 +152,7 @@ logger.info({
       ingestionRun.id,
       transformedRecords.length,
       savedRecords.length,
-      durationMs
+      durationMs,
     );
 
     logger.info({
@@ -183,7 +187,7 @@ logger.info({
         await markIngestionRunFailed(
           ingestionRun.id,
           error.message,
-          durationMs
+          durationMs,
         );
       } catch (updateError) {
         logger.error({
