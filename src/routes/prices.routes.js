@@ -1,24 +1,18 @@
 // Express framework for creating HTTP route handlers
 const express = require("express");
 
-// Market data repository handles all database queries for price data
-// - findLatestPrices: retrieves current prices for all symbols
-// - findLatestPriceBySymbol: gets latest price for a specific symbol
-// - findPriceHistoryBySymbol: retrieves historical price data for analysis
+// Market data service contains application logic for price retrieval
+// It coordinates repository access and Redis cache lookups
 const {
-  findLatestPrices,
-  findLatestPriceBySymbol,
-  findPriceHistoryBySymbol,
-} = require("../repositories/marketData.repository");
+  getLatestPrices,
+  getLatestPriceBySymbol,
+  getPriceHistoryBySymbol,
+} = require("../services/marketData.service");
 
 // Ingestion service orchestrates the ETL pipeline: fetch external data → transform → store
 const {
   fetchTransformAndStorePrices,
 } = require("../services/ingestion.service");
-
-// Cache service provides Redis-based caching for fast price lookups
-// Reduces database load by serving frequently requested data from memory
-const { getLatestPrice, setLatestPrice } = require("../services/cache.service");
 
 // Create a new router instance to modularize price-related endpoints
 // This router will be mounted at /api/prices in the main application
@@ -134,7 +128,7 @@ router.post("/fetch", async (req, res) => {
 // Always queries the database to ensure data accuracy
 router.get("/latest", async (req, res) => {
   try {
-    const prices = await findLatestPrices();
+    const prices = await getLatestPrices();
 
     res.json({
       status: "SUCCESS",
@@ -204,38 +198,20 @@ router.get("/latest", async (req, res) => {
 // This optimizes for the common case where the same symbol is queried frequently
 router.get("/latest/:symbol", async (req, res) => {
   try {
-    // Normalize symbol input to uppercase for consistent lookup
     const symbol = req.params.symbol.toUpperCase();
+    const result = await getLatestPriceBySymbol(symbol);
 
-    // Step 1: Check if the price exists in Redis cache (fast path)
-    const cachedPrice = await getLatestPrice(symbol);
-
-    if (cachedPrice) {
-      return res.json({
-        status: "SUCCESS",
-        source: "cache",
-        data: cachedPrice,
-      });
-    }
-
-    // Step 2: Cache miss - query the database for the latest price
-    const price = await findLatestPriceBySymbol(symbol);
-
-    if (!price) {
+    if (!result) {
       return res.status(404).json({
         status: "NOT_FOUND",
         message: `No price found for symbol ${symbol}`,
       });
     }
 
-    // Step 3: Store the result in cache for future requests
-    // This populates the cache so subsequent requests hit the fast path
-    await setLatestPrice(symbol, price);
-
     res.json({
       status: "SUCCESS",
-      source: "database",
-      data: price,
+      source: result.source,
+      data: result.data,
     });
   } catch (error) {
     res.status(500).json({
@@ -302,7 +278,7 @@ router.get("/history/:symbol", async (req, res) => {
     const requestedLimit = Number(req.query.limit) || 100;
     const limit = Math.min(Math.max(requestedLimit, 1), 500);
 
-    const history = await findPriceHistoryBySymbol(req.params.symbol, limit);
+    const history = await getPriceHistoryBySymbol(req.params.symbol, limit);
 
     res.json({
       status: "SUCCESS",

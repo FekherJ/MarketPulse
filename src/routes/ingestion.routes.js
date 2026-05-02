@@ -3,18 +3,14 @@
 const express = require("express");
 const router = express.Router();
 
-// Import repository functions for querying ingestion run data from the database
+// Ingestion monitoring service contains application logic for querying ingestion history
 const {
-  findLatestIngestionRuns,
-  findFailedIngestionRuns,
-  findIngestionRunById,
-} = require("../repositories/ingestionRun.repository");
-
-// Repository for querying data quality check results
-const {
-  findQualityChecksByIngestionRunId,
-  findFailedQualityChecks,
-} = require("../repositories/dataQuality.repository");
+  getLatestIngestionRuns,
+  getFailedIngestionRuns,
+  getFailedQualityChecks,
+  getQualityChecksByIngestionRunId,
+  getIngestionRunById,
+} = require("../services/ingestionMonitoring.service");
 
 /**
  * @swagger
@@ -61,7 +57,7 @@ const {
 router.get("/runs", async (req, res, next) => {
   try {
     const limit = Number(req.query.limit) || 20;
-    const runs = await findLatestIngestionRuns(limit);
+    const runs = await getLatestIngestionRuns(limit);
 
     res.json({
       status: "SUCCESS",
@@ -118,7 +114,7 @@ router.get("/runs", async (req, res, next) => {
 router.get("/runs/failed", async (req, res, next) => {
   try {
     const limit = Number(req.query.limit) || 20;
-    const runs = await findFailedIngestionRuns(limit);
+    const runs = await getFailedIngestionRuns(limit);
 
     res.json({
       status: "SUCCESS",
@@ -174,7 +170,7 @@ router.get("/runs/failed", async (req, res, next) => {
 router.get("/quality-checks/failed", async (req, res, next) => {
   try {
     const limit = Number(req.query.limit) || 20;
-    const checks = await findFailedQualityChecks(limit);
+    const checks = await getFailedQualityChecks(limit);
 
     res.json({
       status: "SUCCESS",
@@ -239,7 +235,7 @@ router.get("/quality-checks/failed", async (req, res, next) => {
 // Used to see data quality validation results for a particular job
 router.get("/runs/:id/quality-checks", async (req, res, next) => {
   try {
-    const checks = await findQualityChecksByIngestionRunId(req.params.id);
+    const checks = await getQualityChecksByIngestionRunId(req.params.id);
 
     res.json({
       status: "SUCCESS",
@@ -291,7 +287,7 @@ router.get("/runs/:id/quality-checks", async (req, res, next) => {
 // Returns 404 if no run exists with the given ID
 router.get("/runs/:id", async (req, res, next) => {
   try {
-    const run = await findIngestionRunById(req.params.id);
+    const run = await getIngestionRunById(req.params.id);
 
     if (!run) {
       return res.status(404).json({
