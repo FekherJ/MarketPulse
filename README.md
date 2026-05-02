@@ -23,6 +23,7 @@ The project demonstrates a complete backend/data pipeline flow:
 - Ingestion run tracking for pipeline observability
 - Redis cache for frequently accessed latest prices
 - REST API exposure through Express.js
+- Swagger / OpenAPI documentation through `/api-docs`
 - Scheduled ingestion with `node-cron`
 - Structured JSON logs with Winston
 - SQL analysis queries for monitoring and diagnostics
@@ -46,6 +47,7 @@ MarketPulse currently includes:
 - Redis cache for latest BTC / ETH / SOL prices
 - Scheduled ingestion every 60 seconds with `node-cron`
 - Monitoring API for ingestion runs and quality checks
+- Swagger / OpenAPI documentation available at `/api-docs`
 - Structured JSON logs with Winston
 - SQL analysis queries for monitoring and diagnostics
 - SQL index and performance documentation
@@ -56,8 +58,7 @@ MarketPulse currently includes:
 
 Planned next steps:
 
-- Swagger / OpenAPI documentation
-- Additional integration tests for ingestion and monitoring endpoints
+- Deeper end-to-end integration tests with PostgreSQL and Redis
 - AWS proof of concept: EventBridge Scheduler → Lambda → S3 → CloudWatch
 - ELK / Kibana dashboard
 
@@ -194,19 +195,20 @@ Lambda Ingestion
 
 ## 🛠️ Tech Stack
 
-| Layer            | Technology      | Purpose                              |
-| ---------------- | --------------- | ------------------------------------ |
-| Runtime          | Node.js         | Backend runtime                      |
-| API Framework    | Express.js      | REST API                             |
-| Database         | PostgreSQL      | Raw and structured data storage      |
-| Cache            | Redis           | Latest price caching                 |
-| HTTP Client      | Axios           | CoinGecko API calls                  |
-| Scheduler        | node-cron       | Local scheduled ingestion            |
-| Logging          | Winston         | Structured JSON logs                 |
-| Testing          | Jest, Supertest | Unit and API route integration tests |
-| CI               | GitHub Actions  | Automated checks on push/PR          |
-| Containerization | Docker Compose  | Local PostgreSQL and Redis           |
-| Formatting       | Prettier        | Code formatting                      |
+| Layer             | Technology        | Purpose                              |
+| ----------------- | ----------------- | ------------------------------------ |
+| Runtime           | Node.js           | Backend runtime                      |
+| API Framework     | Express.js        | REST API                             |
+| API Documentation | Swagger / OpenAPI | Interactive REST API documentation   |
+| Database          | PostgreSQL        | Raw and structured data storage      |
+| Cache             | Redis             | Latest price caching                 |
+| HTTP Client       | Axios             | CoinGecko API calls                  |
+| Scheduler         | node-cron         | Local scheduled ingestion            |
+| Logging           | Winston           | Structured JSON logs                 |
+| Testing           | Jest, Supertest   | Unit and API route integration tests |
+| CI                | GitHub Actions    | Automated checks on push/PR          |
+| Containerization  | Docker Compose    | Local PostgreSQL and Redis           |
+| Formatting        | Prettier          | Code formatting                      |
 
 ---
 
@@ -239,7 +241,8 @@ marketpulse-pipeline/
 │   ├── config/
 │   │   ├── database.js
 │   │   ├── redis.js
-│   │   └── logger.js
+│   │   ├── logger.js
+│   │   └── swagger.js
 │   │
 │   ├── jobs/
 │   │   └── priceIngestion.job.js
@@ -276,6 +279,12 @@ marketpulse-pipeline/
 
 ## 🔌 API Endpoints
 
+Interactive API documentation is available locally through Swagger UI:
+
+```text
+http://localhost:3000/api-docs
+```
+
 | Method | Endpoint                                  | Description                                                      |
 | ------ | ----------------------------------------- | ---------------------------------------------------------------- |
 | GET    | `/health`                                 | Checks API, PostgreSQL and Redis health                          |
@@ -292,6 +301,12 @@ marketpulse-pipeline/
 ---
 
 ## 🧪 Example Usage
+
+### Swagger UI
+
+```text
+http://localhost:3000/api-docs
+```
 
 ### Health check
 
@@ -756,6 +771,12 @@ The API runs on:
 http://localhost:3000
 ```
 
+Swagger UI is available at:
+
+```text
+http://localhost:3000/api-docs
+```
+
 The scheduled ingestion job starts automatically when the server starts.
 
 ### Stop local infrastructure
@@ -817,10 +838,10 @@ FETCH_INTERVAL_SECONDS=60
 - [x] Unit tests for cache service
 - [x] Unit tests for data quality service
 - [x] Unit tests for ingestion orchestration
+- [x] API route integration tests with Supertest
+- [x] Swagger / OpenAPI documentation
 - [x] Prettier formatting
 - [x] GitHub Actions CI
-- [ ] Swagger / OpenAPI documentation
-- [x] API route integration tests with Supertest
 - [ ] Deeper end-to-end integration tests with PostgreSQL and Redis
 - [ ] AWS proof of concept: EventBridge Scheduler → Lambda → S3 → CloudWatch
 - [ ] ELK / Kibana dashboard
@@ -829,17 +850,19 @@ FETCH_INTERVAL_SECONDS=60
 
 ## 🧭 Project Rationale
 
-I built MarketPulse to strengthen my hands-on understanding of backend, data pipeline and integration engineering concepts.
+MarketPulse was designed to strengthen hands-on understanding of backend, data pipeline and integration engineering concepts through a practical end-to-end implementation.
 
 The project ingests external market data from CoinGecko on a scheduled basis. Raw responses are stored before transformation, which acts as a local raw landing zone similar to what S3 would provide in a cloud architecture. The transformation layer normalizes the payload into structured BTC, ETH and SOL market records, which are stored in PostgreSQL.
 
 The project includes an ingestion monitoring layer through the `ingestion_runs` table. Each pipeline execution is tracked with a status, duration, number of records fetched, number of records inserted and error message if the run fails.
 
-I also added a data quality layer through the `data_quality_checks` table. Each ingestion run validates that the payload is not empty, expected assets are present, transformed records exist, symbols are present, and prices are valid before storing structured data. If a check fails, the results are persisted and the ingestion run is marked as failed.
+The project also includes a data quality layer through the `data_quality_checks` table. Each ingestion run validates that the payload is not empty, expected assets are present, transformed records exist, symbols are present, and prices are valid before storing structured data. If a check fails, the results are persisted and the ingestion run is marked as failed.
 
 Redis is used as a caching layer for frequently requested latest prices. The API checks Redis first, falls back to PostgreSQL on cache miss, and refreshes the cache with a TTL.
 
-The project also includes structured JSON logs, SQL analysis queries, performance notes around indexes, automated tests for the cache, transformation, data quality and ingestion orchestration layers, and a GitHub Actions CI workflow that checks formatting and runs the test suite on every push.
+The project also includes structured JSON logs, SQL analysis queries, performance notes around indexes, automated tests for the cache, transformation, data quality, API routes and ingestion orchestration layers, and a GitHub Actions CI workflow that checks formatting and runs the test suite on every push.
+
+Swagger/OpenAPI documentation is exposed through `/api-docs`, making the API easier to explore and validate during development.
 
 Locally, scheduled ingestion is handled with `node-cron`. In an AWS version, this could map to EventBridge Scheduler triggering Lambda functions, with S3 for raw storage, RDS PostgreSQL for structured data, ElastiCache for Redis, API Gateway for HTTP exposure, and CloudWatch for logs.
 
