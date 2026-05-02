@@ -816,7 +816,7 @@ FETCH_INTERVAL_SECONDS=60
 
 ---
 
-## 🗣️ Interview Story
+## 🧭 Project Rationale
 
 I built MarketPulse to strengthen my hands-on understanding of backend, data pipeline and integration engineering concepts.
 
