@@ -27,7 +27,7 @@ The project demonstrates a complete backend/data pipeline flow:
 - Structured JSON logs with Winston
 - SQL analysis queries for monitoring and diagnostics
 - SQL index and performance documentation
-- Unit tests for transformation, cache, data quality and ingestion orchestration logic
+- Unit and API route integration tests for transformation, cache, data quality, ingestion orchestration and Express routes
 - GitHub Actions CI for automated format checks and test execution
 - AWS architecture mapping for a future cloud version
 
@@ -49,7 +49,7 @@ MarketPulse currently includes:
 - Structured JSON logs with Winston
 - SQL analysis queries for monitoring and diagnostics
 - SQL index and performance documentation
-- Unit tests with Jest for transformation, cache, data quality and ingestion orchestration
+- Unit and API route integration tests with Jest and Supertest for transformation, cache, data quality and ingestion orchestration
 - Docker Compose setup for PostgreSQL and Redis
 - Prettier formatting
 - GitHub Actions CI for automated formatting checks and test execution
@@ -115,12 +115,13 @@ The current implementation is local, but the architecture is designed so each co
 
 ## 🧪 Testing and CI
 
-MarketPulse includes automated tests for the main backend/data pipeline components:
+MarketPulse includes automated tests for the main backend/data pipeline components and API routes:
 
 - cache service
 - transformation service
 - data quality service
 - ingestion orchestration service
+- API route integration tests with Supertest
 
 Run the test suite locally:
 
@@ -193,19 +194,19 @@ Lambda Ingestion
 
 ## 🛠️ Tech Stack
 
-| Layer            | Technology     | Purpose                         |
-| ---------------- | -------------- | ------------------------------- |
-| Runtime          | Node.js        | Backend runtime                 |
-| API Framework    | Express.js     | REST API                        |
-| Database         | PostgreSQL     | Raw and structured data storage |
-| Cache            | Redis          | Latest price caching            |
-| HTTP Client      | Axios          | CoinGecko API calls             |
-| Scheduler        | node-cron      | Local scheduled ingestion       |
-| Logging          | Winston        | Structured JSON logs            |
-| Testing          | Jest           | Unit tests                      |
-| CI               | GitHub Actions | Automated checks on push/PR     |
-| Containerization | Docker Compose | Local PostgreSQL and Redis      |
-| Formatting       | Prettier       | Code formatting                 |
+| Layer            | Technology      | Purpose                              |
+| ---------------- | --------------- | ------------------------------------ |
+| Runtime          | Node.js         | Backend runtime                      |
+| API Framework    | Express.js      | REST API                             |
+| Database         | PostgreSQL      | Raw and structured data storage      |
+| Cache            | Redis           | Latest price caching                 |
+| HTTP Client      | Axios           | CoinGecko API calls                  |
+| Scheduler        | node-cron       | Local scheduled ingestion            |
+| Logging          | Winston         | Structured JSON logs                 |
+| Testing          | Jest, Supertest | Unit and API route integration tests |
+| CI               | GitHub Actions  | Automated checks on push/PR          |
+| Containerization | Docker Compose  | Local PostgreSQL and Redis           |
+| Formatting       | Prettier        | Code formatting                      |
 
 ---
 
@@ -264,6 +265,7 @@ marketpulse-pipeline/
 │       └── calculateVariation.js
 │
 └── tests/
+    ├── api.test.js
     ├── cache.test.js
     ├── dataQuality.test.js
     ├── ingestion.test.js
@@ -692,6 +694,14 @@ The project includes unit tests for:
 - data quality validation rules
 - ingestion orchestration success path
 - ingestion orchestration failure path
+- API health check route
+- manual ingestion trigger route
+- latest price routes
+- price history route
+- ingestion monitoring routes
+- quality check monitoring routes
+
+The API route tests use Supertest with mocked repositories and services, so they validate Express routing, status codes and response structures without requiring PostgreSQL, Redis or CoinGecko during CI.
 
 The ingestion orchestration tests verify that:
 
@@ -810,7 +820,8 @@ FETCH_INTERVAL_SECONDS=60
 - [x] Prettier formatting
 - [x] GitHub Actions CI
 - [ ] Swagger / OpenAPI documentation
-- [ ] Integration tests for ingestion and monitoring endpoints
+- [x] API route integration tests with Supertest
+- [ ] Deeper end-to-end integration tests with PostgreSQL and Redis
 - [ ] AWS proof of concept: EventBridge Scheduler → Lambda → S3 → CloudWatch
 - [ ] ELK / Kibana dashboard
 
@@ -822,7 +833,7 @@ I built MarketPulse to strengthen my hands-on understanding of backend, data pip
 
 The project ingests external market data from CoinGecko on a scheduled basis. Raw responses are stored before transformation, which acts as a local raw landing zone similar to what S3 would provide in a cloud architecture. The transformation layer normalizes the payload into structured BTC, ETH and SOL market records, which are stored in PostgreSQL.
 
-I added an ingestion monitoring layer through the `ingestion_runs` table. Each pipeline execution is tracked with a status, duration, number of records fetched, number of records inserted and error message if the run fails.
+The project includes an ingestion monitoring layer through the `ingestion_runs` table. Each pipeline execution is tracked with a status, duration, number of records fetched, number of records inserted and error message if the run fails.
 
 I also added a data quality layer through the `data_quality_checks` table. Each ingestion run validates that the payload is not empty, expected assets are present, transformed records exist, symbols are present, and prices are valid before storing structured data. If a check fails, the results are persisted and the ingestion run is marked as failed.
 
