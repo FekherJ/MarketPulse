@@ -6,6 +6,43 @@ const { redisClient } = require("../config/redis");
 
 const router = express.Router();
 
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Check API and dependency health
+ *     description: Returns the health status of the API, PostgreSQL and Redis.
+ *     tags:
+ *       - Health
+ *     responses:
+ *       200:
+ *         description: Health status returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: UP
+ *                 service:
+ *                   type: string
+ *                   example: marketpulse-api
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                   example: 2026-05-02T10:00:00.000Z
+ *                 dependencies:
+ *                   type: object
+ *                   properties:
+ *                     database:
+ *                       type: string
+ *                       example: UP
+ *                     redis:
+ *                       type: string
+ *                       example: UP
+ */
+
 // GET / - Main health check endpoint
 // Returns the overall service status and the status of each dependency
 // Load balancers use this to determine whether to route traffic to this instance

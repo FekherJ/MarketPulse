@@ -16,6 +16,45 @@ const {
   findFailedQualityChecks,
 } = require("../repositories/dataQuality.repository");
 
+/**
+ * @swagger
+ * /api/ingestions/runs:
+ *   get:
+ *     summary: Get latest ingestion runs
+ *     description: Returns the latest ingestion pipeline executions with status, duration, record counts and errors.
+ *     tags:
+ *       - Ingestions
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
+ *         description: Maximum number of ingestion runs to return.
+ *     responses:
+ *       200:
+ *         description: Ingestion runs returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 count:
+ *                   type: integer
+ *                   example: 5
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       500:
+ *         description: Failed to retrieve ingestion runs
+ */
+
 // GET /runs - Retrieve the most recent ingestion runs
 // Used by monitoring dashboards to show ingestion job history
 // Supports pagination via query parameter (default: 20, max: 100)
@@ -33,6 +72,45 @@ router.get("/runs", async (req, res, next) => {
     next(error);
   }
 });
+
+/**
+ * @swagger
+ * /api/ingestions/runs/failed:
+ *   get:
+ *     summary: Get failed ingestion runs
+ *     description: Returns ingestion runs that ended with FAILED status.
+ *     tags:
+ *       - Ingestions
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
+ *         description: Maximum number of failed ingestion runs to return.
+ *     responses:
+ *       200:
+ *         description: Failed ingestion runs returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       500:
+ *         description: Failed to retrieve failed ingestion runs
+ */
 
 // GET /runs/failed - Retrieve only failed ingestion runs
 // Used for alerting and debugging ingestion failures
@@ -52,6 +130,45 @@ router.get("/runs/failed", async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/ingestions/quality-checks/failed:
+ *   get:
+ *     summary: Get failed data quality checks
+ *     description: Returns failed data quality checks across ingestion runs.
+ *     tags:
+ *       - Ingestions
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *           maximum: 100
+ *         description: Maximum number of failed quality checks to return.
+ *     responses:
+ *       200:
+ *         description: Failed quality checks returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 count:
+ *                   type: integer
+ *                   example: 3
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       500:
+ *         description: Failed to retrieve failed quality checks
+ */
+
 // GET /quality-checks/failed - Retrieve only failed quality checks
 // Used for identifying data quality issues across all ingestion runs
 router.get("/quality-checks/failed", async (req, res, next) => {
@@ -69,6 +186,55 @@ router.get("/quality-checks/failed", async (req, res, next) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/ingestions/runs/{id}/quality-checks:
+ *   get:
+ *     summary: Get quality checks for an ingestion run
+ *     description: Returns data quality check results for a specific ingestion run.
+ *     tags:
+ *       - Ingestions
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 7
+ *         description: Ingestion run ID.
+ *     responses:
+ *       200:
+ *         description: Quality checks returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 count:
+ *                   type: integer
+ *                   example: 6
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       check_name:
+ *                         type: string
+ *                         example: PAYLOAD_NOT_EMPTY
+ *                       status:
+ *                         type: string
+ *                         example: PASSED
+ *                       error_message:
+ *                         type: string
+ *                         nullable: true
+ *                         example: null
+ *       500:
+ *         description: Failed to retrieve quality checks
+ */
+
 // GET /runs/:id/quality-checks - Retrieve quality checks for a specific ingestion run
 // Used to see data quality validation results for a particular job
 router.get("/runs/:id/quality-checks", async (req, res, next) => {
@@ -84,6 +250,41 @@ router.get("/runs/:id/quality-checks", async (req, res, next) => {
     next(error);
   }
 });
+
+/**
+ * @swagger
+ * /api/ingestions/runs/{id}:
+ *   get:
+ *     summary: Get ingestion run by ID
+ *     description: Returns details for a specific ingestion run.
+ *     tags:
+ *       - Ingestions
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *           example: 7
+ *         description: Ingestion run ID.
+ *     responses:
+ *       200:
+ *         description: Ingestion run returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: object
+ *       404:
+ *         description: Ingestion run not found
+ *       500:
+ *         description: Failed to retrieve ingestion run
+ */
 
 // GET /runs/:id - Retrieve a specific ingestion run by its ID
 // Used for detailed investigation of a particular ingestion job
