@@ -54,7 +54,7 @@ describe("dataQuality.service", () => {
       ingestionRunId,
       validPayload,
       validTransformedRecords,
-      expectedCoins
+      expectedCoins,
     );
 
     expect(checks).toHaveLength(6);
@@ -64,7 +64,7 @@ describe("dataQuality.service", () => {
     expect(findCheck(checks, "PAYLOAD_NOT_EMPTY").status).toBe("PASSED");
     expect(findCheck(checks, "EXPECTED_COINS_PRESENT").status).toBe("PASSED");
     expect(findCheck(checks, "TRANSFORMED_RECORDS_NOT_EMPTY").status).toBe(
-      "PASSED"
+      "PASSED",
     );
     expect(findCheck(checks, "SYMBOL_PRESENT").status).toBe("PASSED");
     expect(findCheck(checks, "PRICE_NOT_NULL").status).toBe("PASSED");
@@ -76,17 +76,17 @@ describe("dataQuality.service", () => {
       ingestionRunId,
       validPayload,
       [],
-      expectedCoins
+      expectedCoins,
     );
 
     const transformedRecordsCheck = findCheck(
       checks,
-      "TRANSFORMED_RECORDS_NOT_EMPTY"
+      "TRANSFORMED_RECORDS_NOT_EMPTY",
     );
 
     expect(transformedRecordsCheck.status).toBe("FAILED");
     expect(transformedRecordsCheck.errorMessage).toBe(
-      "No transformed records generated"
+      "No transformed records generated",
     );
     expect(hasFailedQualityChecks(checks)).toBe(true);
   });
@@ -108,7 +108,7 @@ describe("dataQuality.service", () => {
       ingestionRunId,
       validPayload,
       recordsWithMissingSymbol,
-      expectedCoins
+      expectedCoins,
     );
 
     const symbolCheck = findCheck(checks, "SYMBOL_PRESENT");
@@ -135,7 +135,7 @@ describe("dataQuality.service", () => {
       ingestionRunId,
       validPayload,
       recordsWithNullPrice,
-      expectedCoins
+      expectedCoins,
     );
 
     const priceNotNullCheck = findCheck(checks, "PRICE_NOT_NULL");
@@ -162,14 +162,14 @@ describe("dataQuality.service", () => {
       ingestionRunId,
       validPayload,
       recordsWithNegativePrice,
-      expectedCoins
+      expectedCoins,
     );
 
     const pricePositiveCheck = findCheck(checks, "PRICE_POSITIVE");
 
     expect(pricePositiveCheck.status).toBe("FAILED");
     expect(pricePositiveCheck.errorMessage).toBe(
-      "1 records have non-positive price"
+      "1 records have non-positive price",
     );
     expect(hasFailedQualityChecks(checks)).toBe(true);
   });
@@ -183,14 +183,14 @@ describe("dataQuality.service", () => {
       ingestionRunId,
       payloadMissingEthereum,
       validTransformedRecords,
-      expectedCoins
+      expectedCoins,
     );
 
     const expectedCoinsCheck = findCheck(checks, "EXPECTED_COINS_PRESENT");
 
     expect(expectedCoinsCheck.status).toBe("FAILED");
     expect(expectedCoinsCheck.errorMessage).toBe(
-      "Missing coins in payload: ethereum"
+      "Missing coins in payload: ethereum",
     );
     expect(hasFailedQualityChecks(checks)).toBe(true);
   });
@@ -200,7 +200,7 @@ describe("dataQuality.service", () => {
       ingestionRunId,
       {},
       validTransformedRecords,
-      expectedCoins
+      expectedCoins,
     );
 
     const payloadCheck = findCheck(checks, "PAYLOAD_NOT_EMPTY");

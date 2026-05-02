@@ -70,8 +70,6 @@ async function fetchPricesFromCoinGecko() {
 
 // Main ETL function - fetch, transform, and store prices in one operation
 // This is the core function called by both the API endpoint and the scheduled job
-// Main ETL function - fetch, transform, and store prices in one operation
-// This is the core function called by both the API endpoint and the scheduled job
 async function fetchTransformAndStorePrices() {
   const pipelineStartTime = Date.now();
   let ingestionRun = null;
@@ -110,20 +108,22 @@ async function fetchTransformAndStorePrices() {
       COINS,
     );
 
-    if (hasFailedQualityChecks(qualityChecks)) {
-      throw new Error("Data quality checks failed");
-    }
-
     const savedQualityChecks = await saveDataQualityChecks(qualityChecks);
+
+    const failedQualityChecks = savedQualityChecks.filter(
+      (check) => check.status === "FAILED",
+    );
 
     logger.info({
       event: "DATA_QUALITY_CHECKS_COMPLETED",
       ingestionRunId: ingestionRun.id,
       totalChecks: savedQualityChecks.length,
-      failedChecks: savedQualityChecks.filter(
-        (check) => check.status === "FAILED",
-      ).length,
+      failedChecks: failedQualityChecks.length,
     });
+
+    if (hasFailedQualityChecks(savedQualityChecks)) {
+      throw new Error("Data quality checks failed");
+    }
 
     // Step 4: Save each transformed record to database and update cache
     const savedRecords = [];
