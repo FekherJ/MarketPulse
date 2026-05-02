@@ -1,7 +1,7 @@
 {
   "name": "marketpulse-pipeline",
   "version": "1.0.0",
-  "description": "Event-driven crypto market data pipeline — ingestion, transformation, caching, REST API",
+  "description": "Backend data pipeline monitoring API — ingestion, transformation, caching, REST API",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -12,11 +12,13 @@
     "format:check": "prettier --check ."
   },
   "keywords": [
-    "pipeline",
-    "event-driven",
-    "crypto",
+    "data-pipeline",
+    "backend",
+    "api",
     "redis",
     "postgresql",
+    "etl",
+    "monitoring",
     "aws"
   ],
   "author": "Fekher",
