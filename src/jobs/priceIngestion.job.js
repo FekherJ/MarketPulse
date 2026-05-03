@@ -7,11 +7,28 @@ const {
   fetchTransformAndStorePrices,
 } = require("../services/ingestion.service");
 
+// Read and validate the ingestion interval from environment variables
+// node-cron supports the */N seconds format for values between 1 and 59 seconds
+function getIngestionIntervalSeconds() {
+  const intervalSeconds = Number(process.env.FETCH_INTERVAL_SECONDS || 30);
+
+  if (
+    !Number.isInteger(intervalSeconds) ||
+    intervalSeconds < 1 ||
+    intervalSeconds > 59
+  ) {
+    throw new Error(
+      "FETCH_INTERVAL_SECONDS must be an integer between 1 and 59",
+    );
+  }
+
+  return intervalSeconds;
+}
+
 // Initialize and start the price ingestion cron job
 // The interval is configurable via FETCH_INTERVAL_SECONDS environment variable
 function startPriceIngestionJob() {
-  // Read the interval from environment, default to 60 seconds if not set
-  const intervalSeconds = Number(process.env.FETCH_INTERVAL_SECONDS || 60);
+  const intervalSeconds = getIngestionIntervalSeconds();
 
   // Build cron expression: */N * * * * * runs every N seconds
   // Note: node-cron uses 6-field format (seconds, minutes, hours, day, month, weekday)
@@ -52,4 +69,5 @@ function startPriceIngestionJob() {
 // Export the function to be called from server.js during startup
 module.exports = {
   startPriceIngestionJob,
+  getIngestionIntervalSeconds,
 };
