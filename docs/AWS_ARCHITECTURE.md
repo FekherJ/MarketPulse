@@ -200,6 +200,30 @@ The current project is already designed around several cloud-ready principles:
 
 These principles make it easier to move from a local Docker Compose setup to a cloud deployment.
 
+### Ingestion job configuration
+
+The local ingestion scheduler can be enabled or disabled through environment variables.
+
+```text
+ENABLE_INGESTION_JOB=true
+```
+
+When set to `true`, the API process starts the local `node-cron` ingestion job.
+
+```text
+ENABLE_INGESTION_JOB=false
+```
+
+When set to `false`, the API starts without the local ingestion scheduler. This is useful for cloud deployments where ingestion can be triggered separately by AWS EventBridge Scheduler, an ECS scheduled task, or another external scheduler.
+
+The ingestion interval is configured with:
+
+```text
+FETCH_INTERVAL_SECONDS=30
+```
+
+This value must be an integer between 1 and 59 because the current `node-cron` expression uses the `*/N` seconds format.
+
 ---
 
 ## 6. Recommended Evolution Path
