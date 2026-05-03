@@ -17,11 +17,17 @@ const { connectRedis } = require("./config/redis");
 // Server port configuration - defaults to 3000 if not set in environment
 const PORT = process.env.PORT || 3000;
 
+// Background ingestion job configuration
+// true  = the API process starts the local node-cron ingestion job
+// false = the API starts without the cron job, useful for cloud deployments
+// where ingestion is triggered separately by EventBridge, ECS scheduled tasks, or another scheduler
+const ENABLE_INGESTION_JOB = process.env.ENABLE_INGESTION_JOB !== "false";
+
 // Main server startup function - orchestrates initialization sequence
 // 1. Test database connectivity
 // 2. Connect to Redis cache
 // 3. Start HTTP server
-// 4. Register scheduled price ingestion job
+// 4. Register scheduled price ingestion job if enabled
 async function startServer() {
   try {
     // Step 1: Verify PostgreSQL is accessible before accepting requests
@@ -37,9 +43,15 @@ async function startServer() {
         port: PORT,
       });
 
-      // Step 4: Start the background job for periodic price updates
-      // This runs independently of HTTP requests
-      startPriceIngestionJob();
+      // Step 4: Start the background job for periodic price updates if enabled
+      // This allows cloud deployments to disable local cron and use EventBridge/ECS scheduled tasks instead
+      if (ENABLE_INGESTION_JOB) {
+        startPriceIngestionJob();
+      } else {
+        logger.info({
+          event: "PRICE_INGESTION_JOB_DISABLED",
+        });
+      }
     });
   } catch (error) {
     // If any critical service fails to initialize, log error and exit
