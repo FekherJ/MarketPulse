@@ -28,13 +28,18 @@ flowchart TB
         APP[app.js - Registers routes]
 
         subgraph ROUTES[Routes Layer]
-            HEALTH[health.routes.js - GET /health]
-            PRICES[prices.routes.js - /api/prices]
+            HEALTH_ROUTE[health.routes.js - GET /health]
+            PRICES_ROUTE[prices.routes.js - /api/prices]
+            INGESTION_ROUTE[ingestion.routes.js - /api/ingestions]
         end
 
         subgraph SERVICES[Services Layer]
+            HEALTH_SERVICE[health.service.js - Dependency health checks]
+            MARKET_SERVICE[marketData.service.js - Price read logic and cache-aside flow]
+            INGESTION_MONITORING[ingestionMonitoring.service.js - Ingestion monitoring queries]
             INGESTION[ingestion.service.js - Fetch and orchestrate pipeline]
             TRANSFORMATION[transformation.service.js - Normalize CoinGecko payload]
+            DATA_QUALITY[dataQuality.service.js - Validate payload and transformed records]
             CACHE[cache.service.js - Redis cache operations]
         end
 
@@ -48,53 +53,75 @@ flowchart TB
     subgraph REPOSITORIES[Repository Layer]
         RAW_REPO[rawData.repository.js]
         MARKET_REPO[marketData.repository.js]
+        INGESTION_REPO[ingestionRun.repository.js]
+        DATA_QUALITY_REPO[dataQuality.repository.js]
     end
 
     subgraph STORAGE[Storage Layer]
         POSTGRES_RAW[(PostgreSQL raw_prices)]
         POSTGRES_MARKET[(PostgreSQL market_data)]
+        POSTGRES_INGESTION[(PostgreSQL ingestion_runs)]
+        POSTGRES_QUALITY[(PostgreSQL data_quality_checks)]
         REDIS[(Redis latest:BTC / latest:ETH / latest:SOL)]
     end
 
-    CLIENT -->|GET /health| HEALTH
-    CLIENT -->|POST /api/prices/fetch| PRICES
-    CLIENT -->|GET /api/prices/latest| PRICES
-    CLIENT -->|GET /api/prices/latest/:symbol| PRICES
-    CLIENT -->|GET /api/prices/history/:symbol| PRICES
+    CLIENT -->|GET /health| HEALTH_ROUTE
+    CLIENT -->|POST /api/prices/fetch| PRICES_ROUTE
+    CLIENT -->|GET /api/prices/latest| PRICES_ROUTE
+    CLIENT -->|GET /api/prices/latest/:symbol| PRICES_ROUTE
+    CLIENT -->|GET /api/prices/history/:symbol| PRICES_ROUTE
+    CLIENT -->|GET /api/ingestions/*| INGESTION_ROUTE
 
     SERVER --> APP
     SERVER --> CRON
-    APP --> HEALTH
-    APP --> PRICES
+    APP --> HEALTH_ROUTE
+    APP --> PRICES_ROUTE
+    APP --> INGESTION_ROUTE
 
+    HEALTH_ROUTE --> HEALTH_SERVICE
+    PRICES_ROUTE --> MARKET_SERVICE
+    PRICES_ROUTE --> INGESTION
+    INGESTION_ROUTE --> INGESTION_MONITORING
     CRON --> INGESTION
-    PRICES --> INGESTION
-    PRICES --> CACHE
-    PRICES --> MARKET_REPO
-    HEALTH --> POSTGRES_RAW
-    HEALTH --> REDIS
+
+    HEALTH_SERVICE --> POSTGRES_RAW
+    HEALTH_SERVICE --> REDIS
+
+    MARKET_SERVICE --> CACHE
+    MARKET_SERVICE --> MARKET_REPO
+    CACHE --> REDIS
+    MARKET_REPO --> POSTGRES_MARKET
+
+    INGESTION_MONITORING --> INGESTION_REPO
+    INGESTION_MONITORING --> DATA_QUALITY_REPO
+    INGESTION_REPO --> POSTGRES_INGESTION
+    DATA_QUALITY_REPO --> POSTGRES_QUALITY
 
     INGESTION -->|HTTP request| COINGECKO
     COINGECKO -->|JSON payload| INGESTION
 
+    INGESTION --> INGESTION_REPO
     INGESTION --> RAW_REPO
-    RAW_REPO --> POSTGRES_RAW
-
     INGESTION --> TRANSFORMATION
-
-    TRANSFORMATION --> MARKET_REPO
-    MARKET_REPO --> POSTGRES_MARKET
-
+    INGESTION --> DATA_QUALITY
+    INGESTION --> MARKET_REPO
     INGESTION --> CACHE
-    CACHE --> REDIS
 
+    RAW_REPO --> POSTGRES_RAW
+    TRANSFORMATION --> MARKET_REPO
+    DATA_QUALITY --> DATA_QUALITY_REPO
     MARKET_REPO --> POSTGRES_MARKET
 
     SERVER -. logs .-> LOGGER
-    HEALTH -. logs .-> LOGGER
-    PRICES -. logs .-> LOGGER
+    HEALTH_ROUTE -. logs .-> LOGGER
+    PRICES_ROUTE -. logs .-> LOGGER
+    INGESTION_ROUTE -. logs .-> LOGGER
+    HEALTH_SERVICE -. logs .-> LOGGER
+    MARKET_SERVICE -. logs .-> LOGGER
+    INGESTION_MONITORING -. logs .-> LOGGER
     INGESTION -. logs .-> LOGGER
     TRANSFORMATION -. logs .-> LOGGER
+    DATA_QUALITY -. logs .-> LOGGER
     CACHE -. logs .-> LOGGER
     CRON -. logs .-> LOGGER
 ```
@@ -125,10 +152,11 @@ Main route files:
 ```text
 src/routes/health.routes.js
 src/routes/prices.routes.js
+src/routes/ingestion.routes.js
 ```
 
-The routes do not contain the full business logic.  
-They delegate work to services or repositories.
+The routes do not contain business logic or direct SQL/data-access logic.  
+They delegate work to services.
 
 ---
 
@@ -139,16 +167,25 @@ The services layer contains the main application logic.
 Main services:
 
 ```text
+src/services/health.service.js
+src/services/marketData.service.js
+src/services/ingestionMonitoring.service.js
 src/services/ingestion.service.js
 src/services/transformation.service.js
+src/services/dataQuality.service.js
 src/services/cache.service.js
 ```
 
 Responsibilities:
 
+- check PostgreSQL and Redis health;
+- retrieve latest and historical market data;
+- coordinate Redis cache-aside behavior for latest prices;
+- expose ingestion monitoring data;
 - call CoinGecko;
 - store raw data;
 - transform the payload;
+- run data quality checks;
 - save structured market data;
 - update Redis cache.
 
@@ -163,6 +200,8 @@ Main repositories:
 ```text
 src/repositories/rawData.repository.js
 src/repositories/marketData.repository.js
+src/repositories/ingestionRun.repository.js
+src/repositories/dataQuality.repository.js
 ```
 
 Responsibilities:
@@ -170,7 +209,9 @@ Responsibilities:
 - insert raw payloads into `raw_prices`;
 - insert structured records into `market_data`;
 - retrieve latest prices;
-- retrieve price history.
+- retrieve price history;
+- track ingestion runs in `ingestion_runs`;
+- store and retrieve data quality checks.
 
 ---
 
@@ -288,11 +329,12 @@ Flow:
 
 ```text
 1. prices.routes.js receives GET /api/prices/latest/BTC
-2. The route checks Redis key latest:BTC
-3. If Redis contains the value, the API returns source: "cache"
-4. If Redis does not contain the value, the API reads PostgreSQL
-5. The PostgreSQL result is stored again in Redis
-6. The API returns source: "database"
+2. The route calls marketData.service.js
+3. marketData.service.js checks Redis key latest:BTC through cache.service.js
+4. If Redis contains the value, the API returns source: "cache"
+5. If Redis does not contain the value, marketData.service.js reads PostgreSQL through marketData.repository.js
+6. The PostgreSQL result is stored again in Redis
+7. The API returns source: "database"
 ```
 
 Redis keys:
@@ -354,8 +396,8 @@ It checks:
 
 ```text
 API status
-PostgreSQL connection
-Redis connection
+PostgreSQL connection through health.service.js
+Redis connection through health.service.js
 ```
 
 Expected response:
@@ -383,8 +425,13 @@ Logs are produced by several components:
 server.js
 health.routes.js
 prices.routes.js
+ingestion.routes.js
+health.service.js
+marketData.service.js
+ingestionMonitoring.service.js
 ingestion.service.js
 transformation.service.js
+dataQuality.service.js
 cache.service.js
 priceIngestion.job.js
 ```
@@ -452,6 +499,7 @@ MarketPulse currently demonstrates:
 
 ```text
 REST API
+layered route/service/repository architecture
 external API ingestion
 ETL-style transformation
 PostgreSQL raw and structured storage

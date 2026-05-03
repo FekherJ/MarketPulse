@@ -39,6 +39,7 @@ The project demonstrates a complete backend/data pipeline flow:
 MarketPulse currently includes:
 
 - Express.js REST API
+- Layered route/service/repository architecture
 - CoinGecko market data ingestion
 - PostgreSQL storage for raw and processed market data
 - PostgreSQL ingestion run tracking through `ingestion_runs`
@@ -111,6 +112,22 @@ Express.js
 ```
 
 The current implementation is local, but the architecture is designed so each component can be mapped to a cloud-native AWS equivalent later.
+
+The API follows a layered backend structure:
+
+```text
+HTTP routes
+      │
+      ▼
+Services
+(application logic, cache coordination, ingestion monitoring)
+      │
+      ▼
+Repositories / infrastructure clients
+(SQL access, PostgreSQL, Redis, external APIs)
+```
+
+Routes are responsible for HTTP requests and responses. Services contain application logic. Repositories isolate SQL/database access.
 
 ---
 
@@ -230,6 +247,7 @@ marketpulse-pipeline/
 │   └── init.sql
 │
 ├── docs/
+│   ├── ARCHITECTURE.md
 │   └── sql-analysis/
 │       ├── marketpulse_analysis.sql
 │       └── indexes.md
@@ -248,6 +266,9 @@ marketpulse-pipeline/
 │   │   └── priceIngestion.job.js
 │   │
 │   ├── services/
+│   │   ├── health.service.js
+│   │   ├── marketData.service.js
+│   │   ├── ingestionMonitoring.service.js
 │   │   ├── ingestion.service.js
 │   │   ├── transformation.service.js
 │   │   ├── dataQuality.service.js
