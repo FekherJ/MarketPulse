@@ -59,17 +59,17 @@ PostgreSQL / Redis / external APIs
 
 The local components can be mapped to AWS services as follows:
 
-| Local Component | Responsibility | AWS Equivalent |
-|---|---|---|
-| Express.js API | Expose REST endpoints | Amazon ECS Fargate or Elastic Beanstalk |
-| Docker container | Package and run the API | Amazon ECR + ECS Fargate |
-| PostgreSQL | Store raw and processed market data | Amazon RDS for PostgreSQL |
-| Redis | Cache latest market prices | Amazon ElastiCache for Redis |
-| node-cron | Trigger scheduled ingestion | Amazon EventBridge Scheduler |
-| Ingestion service | Fetch, transform, validate and store data | ECS scheduled task or AWS Lambda |
-| Application logs | Runtime visibility | Amazon CloudWatch Logs |
-| `.env` variables | Configuration and secrets | AWS Systems Manager Parameter Store or AWS Secrets Manager |
-| Health endpoint | Service availability check | Load Balancer health check / ECS health check |
+| Local Component   | Responsibility                            | AWS Equivalent                                             |
+| ----------------- | ----------------------------------------- | ---------------------------------------------------------- |
+| Express.js API    | Expose REST endpoints                     | Amazon ECS Fargate or Elastic Beanstalk                    |
+| Docker container  | Package and run the API                   | Amazon ECR + ECS Fargate                                   |
+| PostgreSQL        | Store raw and processed market data       | Amazon RDS for PostgreSQL                                  |
+| Redis             | Cache latest market prices                | Amazon ElastiCache for Redis                               |
+| node-cron         | Trigger scheduled ingestion               | Amazon EventBridge Scheduler                               |
+| Ingestion service | Fetch, transform, validate and store data | ECS scheduled task or AWS Lambda                           |
+| Application logs  | Runtime visibility                        | Amazon CloudWatch Logs                                     |
+| `.env` variables  | Configuration and secrets                 | AWS Systems Manager Parameter Store or AWS Secrets Manager |
+| Health endpoint   | Service availability check                | Load Balancer health check / ECS health check              |
 
 ---
 

@@ -113,6 +113,8 @@ Express.js
 
 The current implementation is local, but the architecture is designed so each component can be mapped to a cloud-native AWS equivalent later.
 
+For the AWS cloud-ready architecture mapping, see [`docs/AWS_ARCHITECTURE.md`](docs/AWS_ARCHITECTURE.md).
+
 The API follows a layered backend structure:
 
 ```text
